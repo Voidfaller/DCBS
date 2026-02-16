@@ -2,27 +2,30 @@
 
 ## Context van het Project
 
-Voor het vak TINLAB - Embedded systems wordt een systeem ontworpen en ontwikkeld dat 
+Voor het vak TINLAB - Embedded Systems wordt een systeem ontworpen en ontwikkeld dat adaptieve ventilatie biedt op basis van omgevings- en fysiologische sensorinput, om comfort en concentratie te verbeteren.
 
-### Wetenschappelijke Ondergrond
-
+### Wetenschappelijke Achtergrond
 Recent onderzoek toont aan dat:
 
-1. **Natuurlijke geluiden bevorderen stress recovery** (Alvarsson et al., 2010): Onderzoek naar huid geleiding en hartslagvariabiliteit toont aan dat stress recovery sneller plaatsvindt tijdens blootstelling aan aangenaam natuurlijk geluid vergeleken met omgevingslawaai.
+1. **Thermisch comfort beïnvloedt cognitieve prestaties en stress** (Lan et al., 2017): Studies tonen aan dat een omgevingstemperatuur buiten het comfortgebied leidt tot verminderde concentratie en hogere stressniveaus.
 
-2. **Cognitieve invloed van geluid op gezondheid** (Andringa & Lanser, 2013): Aangename geluiden bevorderen positieve mentale toestanden en volle controle over geestelijke toestanden, terwijl hinderlijk geluid vigilantie afdwingt en cognitieve prestaties belemmert.
+2. **Fysiologische signalen voorspellen comfort** (Lin et al., 2022): Huidtemperatuur, lichaamstemperatuur en andere metingen kunnen gebruikt worden om individueel thermisch comfort te voorspellen, waardoor ventilatie dynamisch kan worden aangepast.
 
-3. **Impact op ADHD bij adolescenten** (Batho et al., 2015): Verschillende soorten omgevingslawaai hebben verschillende effecten op academische prestaties. Babbelende spraak verslechtert de prestaties, terwijl wit ruis paradoxaal genoeg leesvloeiing kan verbeteren ondanks verwerkingsmoeilijkheden.
+3. **ADHD-medicatie beïnvloedt thermoregulatie** (CDC, 2023; Springer, 2021): Stimulantia zoals methylfenidaat kunnen de lichaamstemperatuur verhogen en het vermogen van het lichaam om warmte af te voeren beïnvloeden, wat invloed kan hebben op concentratie en comfort.
 
 ## Probleemstelling
+Hoewel dynamische ventilatie en temperatuurregeling bewezen effect hebben op comfort en cognitieve prestaties, zijn veel bestaande oplossingen:
 
-Hoewel natuurlijke geluiden wetenschappelijk zijn bewezen stresshervatting en concentratie te verbeteren, hebben individuele omgevingen heterogene geluidslandschappen. Er ontbreken praktische, adaptieve embedded systemen die:
+- Statisch ingesteld (constante ventilator- of airco-instellingen)
 
-- Automatisch passende ambient sounds selecteert en afspeelt op basis van omgevingsomstandigheden
-- Dynamisch luidsprekers aanpast naarmate stressindicatoren of omgevingsparameters veranderen
-- Geschikt zijn voor verschillende contexten (kantoor, thuis, onderwijs, recreatie)
+- Niet afgestemd op individuele fysiologische of omgevingscondities
 
-Huidige oplossingen zijn meestal statisch (eenvoudige ambient sound apps) of zeer duur (professionele akoestische systemen), en bieden geen intelligente aanpassing aan echte sensor data.
+- Duur of complex in implementatie
+
+Er ontbreekt een praktisch, adaptief embedded systeem dat:
+- De ventilator automatisch aanstuurt op basis van omgevingstemperatuur en fysiologische signalen zoals huidtemperatuur
+- Individueel comfort en stressniveau ondersteunt, inclusief situaties waarin medicatie thermoregulatie beïnvloedt
+- Geschikt is voor verschillende contexten (kantoor, thuis, onderwijs, recreatie)
 
 ## Opdracht Omschrijving
 
@@ -30,7 +33,7 @@ Ontwerp en implementeer een **Dynamisch Ambient Sound System** (DASS) dat automa
 
 
 ### Doelgroepen:
-- ADHD-gevoelige individuen
-- Professionals in een focus-gevoelige werkomgeving
-- Studenten die zich willen concentreren tijdens studie
-- Iedereen die stress wil verminderen in hun omgeving
+- Personen met ADHD die thermoregulatie gevoelig kunnen zijn
+- Professionals die in focus-gevoelige omgevingen werken
+- Studenten die hun concentratie willen optimaliseren
+- Iedereen die stress wil verminderen door een comfortabele omgevingstemperatuur
