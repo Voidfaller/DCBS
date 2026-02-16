@@ -29,7 +29,7 @@ Er ontbreekt een praktisch, adaptief embedded systeem dat:
 
 ## Opdracht Omschrijving
 
-Ontwerp en implementeer een **Dynamisch Ambient Sound System** (DASS) dat automatisch ambient geluiden afspeelt en aanpast op basis van sensor input en omgevingsanalyse.
+Ontwerp en implementeer een **Dynamisch Comfort Ventilatie Systeem** (DCVS) dat automatisch een ventilator aanstuurt en instellingen aanpast op basis van sensorinput en individuele thermische behoeften.
 
 
 ### Doelgroepen:
