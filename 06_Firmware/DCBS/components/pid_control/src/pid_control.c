@@ -24,8 +24,6 @@ static TaskHandle_t s_pid_task_handle = NULL;
 static TaskHandle_t s_pid_input_task_handle = NULL;
 static pid_controller_t s_pitch_pid;
 static pid_controller_t s_roll_pid;
-static float s_pitch_setpoint_deg = 0.0f;
-static float s_roll_setpoint_deg = 0.0f;
 
 static void pid_control_apply_settings_from_config(void)
 {
@@ -36,13 +34,8 @@ static void pid_control_apply_settings_from_config(void)
     {
         pid_init(&s_pitch_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
         pid_init(&s_roll_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
-        s_pitch_setpoint_deg = 0.0f;
-        s_roll_setpoint_deg = 0.0f;
         return;
     }
-
-    s_pitch_setpoint_deg = (float)cfg->pid_setpoint;
-    s_roll_setpoint_deg = (float)cfg->pid_setpoint;
 
     pid_init(
         &s_pitch_pid,
@@ -183,6 +176,16 @@ esp_err_t pid_control_reload_settings(void)
     return ESP_OK;
 }
 
+esp_err_t pid_control_set_setpoints(float pitch_setpoint_deg, float roll_setpoint_deg)
+{
+    return config_manager_set_current_setpoints(pitch_setpoint_deg, roll_setpoint_deg, false);
+}
+
+esp_err_t pid_control_get_setpoints(float *pitch_setpoint_deg, float *roll_setpoint_deg)
+{
+    return config_manager_get_current_setpoints(pitch_setpoint_deg, roll_setpoint_deg);
+}
+
 esp_err_t pid_control_start(void)
 {
     BaseType_t task_created;
@@ -268,11 +271,15 @@ void pid_control_task(void *arg)
         pid_input_t in;
         if (xQueueReceive(pid_input_queue_handle, &in, pdMS_TO_TICKS(100)) == pdPASS)
         {
+            float pitch_setpoint_deg = 0.0f;
+            float roll_setpoint_deg = 0.0f;
+            (void)config_manager_get_current_setpoints(&pitch_setpoint_deg, &roll_setpoint_deg);
+
             pid_output_t out = {
                 .pitch_measurement = in.pitch_measurement,
                 .roll_measurement = in.roll_measurement,
-                .pitch_output = pid_update(&s_pitch_pid, s_pitch_setpoint_deg, in.pitch_measurement, PID_DT_SECONDS),
-                .roll_output = pid_update(&s_roll_pid, s_roll_setpoint_deg, in.roll_measurement, PID_DT_SECONDS),
+                .pitch_output = pid_update(&s_pitch_pid, pitch_setpoint_deg, in.pitch_measurement, PID_DT_SECONDS),
+                .roll_output = pid_update(&s_roll_pid, roll_setpoint_deg, in.roll_measurement, PID_DT_SECONDS),
             };
 
             if (pid_output_queue_handle != NULL)

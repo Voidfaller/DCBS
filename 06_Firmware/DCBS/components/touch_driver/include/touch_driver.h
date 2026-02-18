@@ -9,7 +9,7 @@
 #endif
 
 #ifndef TOUCH_THRESHOLD
-#define TOUCH_THRESHOLD 30U         // REVIEW: check of deze threshold goed is later
+#define TOUCH_THRESHOLD 70U         // REVIEW: check of deze threshold goed is later
 #endif
 
 #ifndef TOUCH_POLL_MS
@@ -24,6 +24,7 @@ typedef struct
 } touch_data_t;
 
 esp_err_t touch_driver_init(void);
+esp_err_t touch_driver_start(void);
 esp_err_t touch_driver_read(touch_data_t *data);
 void touch_driver_task(void *pvParameters);
 

@@ -47,6 +47,8 @@ float pid_update (pid_controller_t *pid,
 
 esp_err_t pid_control_start(void);
 esp_err_t pid_control_reload_settings(void);
+esp_err_t pid_control_set_setpoints(float pitch_setpoint_deg, float roll_setpoint_deg);
+esp_err_t pid_control_get_setpoints(float *pitch_setpoint_deg, float *roll_setpoint_deg);
 void pid_control_task(void *arg);
 QueueHandle_t pid_control_get_queue_handle(void);
 QueueHandle_t pid_control_get_input_queue_handle(void);

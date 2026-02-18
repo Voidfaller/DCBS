@@ -4,8 +4,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "config_manager.h"
+#include "state_estimator.h"
 
 static const char *TAG = "TOUCH_DRIVER"; //logging tag
+static TaskHandle_t s_touch_task_handle = NULL;
 
 
 esp_err_t touch_driver_init(void)
@@ -59,7 +62,33 @@ esp_err_t touch_driver_read(touch_data_t *data)
     return ESP_OK;
 }
 
-//FreeRTOS task to continuously read touch data and log the event
+// Starts the touch driver task that continuously reads touch data and updates setpoints on touch events, supposedly
+esp_err_t touch_driver_start(void)
+{
+    BaseType_t task_ok;
+
+    if (s_touch_task_handle != NULL)
+    {
+        return ESP_OK;
+    }
+
+    if (touch_driver_init() != ESP_OK)
+    {
+        return ESP_FAIL;
+    }
+
+    task_ok = xTaskCreate(touch_driver_task, "touch_driver_task", 2048, NULL, 5, &s_touch_task_handle);
+    if (task_ok != pdPASS)
+    {
+        s_touch_task_handle = NULL;
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+//FreeRTOS task to continuously read touch data and log the event.
+// NEW : On touch events it also captures the current orientation from the state estimator and updates the setpoints in the config manager 
 void touch_driver_task(void *pvParameters)
 {
     touch_data_t data;
@@ -75,6 +104,16 @@ void touch_driver_task(void *pvParameters)
             if (data.touched && !was_touched)
             {
                 ESP_LOGI(TAG, "Touch detected (value: %lu)", (unsigned long)data.touch_value);
+        // Capture current orientation and set it as the new setpoint in the config manager
+                orientation_t orientation = state_estimator_get_orientation();
+                if (config_manager_set_current_setpoints(orientation.pitch, orientation.roll, true) == ESP_OK)
+                {
+                    ESP_LOGI(TAG, "Captured! >Current setpoints: pitch=%.2f roll=%.2f", orientation.pitch, orientation.roll);
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "Failed to store setpoints");
+                }
             }
         // Update the previous touch state
             was_touched = data.touched;

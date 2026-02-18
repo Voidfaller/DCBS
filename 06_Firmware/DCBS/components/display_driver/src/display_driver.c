@@ -73,7 +73,7 @@ static void ui_apply_config_to_settings(const display_ui_task_ctx_t *ctx, const 
 
     if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
     {
-        *ctx->settings[0].value = cfg->pid_setpoint;
+        *ctx->settings[0].value = (int32_t)lroundf(cfg->pitch_setpoint_deg);
     }
     if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
     {
@@ -98,6 +98,7 @@ static app_config_t ui_collect_config_from_settings(const display_ui_task_ctx_t 
         if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
         {
             cfg.pid_setpoint = *ctx->settings[0].value;
+            cfg.pitch_setpoint_deg = (float)(*ctx->settings[0].value);
         }
         if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
         {
@@ -930,7 +931,7 @@ static void display_ui_task_run(void *arg)
         }
 
         ui_button_events_t events = ui_read_button_events();
-        int32_t setpoint = (ctx->config_bound) ? ctx->last_config.pid_setpoint : 0;
+        int32_t setpoint = (ctx->config_bound) ? (int32_t)lroundf(ctx->last_config.pitch_setpoint_deg) : 0;
         int32_t measured = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
         int32_t output = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_output) : 0;
         int32_t est_pitch = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
