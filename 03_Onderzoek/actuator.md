@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Actuator Research – Dynamic Cup Balancing System (DBBS)
 
 ## 1. Introduction
@@ -172,3 +173,6 @@ For better reliability, a metal gear servo (MG996R) is preferred.
 
 The micro servo motor is the most suitable actuator for the Stabilization Platform System.
 Compared to DC motors and stepper motors, the servo offers the best balance between performance, simplicity, and budget for a single-axis stabilization system.
+=======
+//titel
+>>>>>>> ce60639 (add Sensor research)
