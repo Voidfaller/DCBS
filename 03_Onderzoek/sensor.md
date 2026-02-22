@@ -286,7 +286,7 @@ Both sensors:
 - Support I2C communication
 - Can share the same I2C bus (different addresses)
 - Are compatible with STM32 microcontrollers.
-- Support real-time sampling (1–10 Hz)
+- Support real-time sampling (1–10 Hz).
 
 ---
 
