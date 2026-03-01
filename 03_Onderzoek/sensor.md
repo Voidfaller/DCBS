@@ -30,7 +30,6 @@ This budget includes:
 
 Because the team consists of five members, the selected components must be cost-efficient while still meeting technical and course requirements. The MCU platform and sensors must leave sufficient financial margin for mandatory components such as:
 
-- Fan driver circuitry (e.g., MOSFET + protection)
 - Display and user interface
 - Power regulation
 - PCB and supporting electronics
@@ -121,7 +120,7 @@ The MPU6050 is selected because it provides continuous angle information and rot
 - higher cost
 - higher power consumption
 
-**Conclusion:**  
+**Conclusion:** 
 While technically superior, the BNO055 exceeds the project requirements and budget constraints. Therefore, it was not selected. The MPU6050 is the most logical choice due to its balance of cost and extensive library support
 ---
 
