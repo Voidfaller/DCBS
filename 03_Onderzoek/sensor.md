@@ -116,7 +116,9 @@ The MPU6050 is selected because it provides continuous angle information and rot
 - higher power consumption
 
 **Conclusion:** 
+
 While technically superior, the BNO055 exceeds the project requirements and budget constraints. Therefore, it was not selected. The MPU6050 is the most logical choice due to its balance of cost and extensive library support
+
 ---
 
 
