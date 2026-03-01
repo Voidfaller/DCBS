@@ -18,7 +18,7 @@ The system aims to regulate thermal comfort by controlling a fan based on enviro
 
 This document evaluates potential sensor solutions and justifies the final selection based on:
 
-- Accuracy
+- Accuracy.
 - Communication compatibility (I2C requirement)
 - Power consumption
 - Real-time capability
