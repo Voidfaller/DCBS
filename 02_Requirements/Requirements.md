@@ -1,56 +1,70 @@
-# Requirements – Dynamisch Beker Balanceer Systeem (DBBS)
- ### 1.1 Epics
-#### 1.1.1 Adaptieve Stabilisatie
-  Het systeem moet de hellingshoek van een beker dynamisch reguleren door servos automatisch aan te sturen op basis van omgevings- en bewegingsdata.
-#### 1.1.2 Sensorintegratie en Dataverwerking
-Het systeem moet relevante bewegings data betrouwbaar verzamelen, verwerken en interpreteren op een embedded platform.
-    
-#### 1.1.3 Personalisatie en Comfortmodellering
-  Het systeem moet individuele voorkeuren of scenario’s ondersteunen (bijv. snelheid van correcties, maximale hellingstolerantie) door middel van instelbare parameters.
+# Requirements – Dynamic Cup Balancing System (DCBS)
 
-#### 1.1.4 Betrouwbare en Veilige Embedded Architectuur
-   Het systeem moet stabiel, veilig en energie-efficiënt functioneren binnen verschillende gebruiksomgevingen (tafel, bureau, onderwijs, recreatie).
-### 1.2 Functionele Eisen
-#### 1.2.1 Bekerhellingmeting
-Het systeem moet de hellingshoek van de beker kunnen meten of bijhouden met een geschikte sensor.
+### 1.1 Epics
+#### 1.1.1 Adaptive Stabilization
+The system shall dynamically regulate the cup tilt angle by automatically controlling servos based on environmental and motion data.
 
-#### 1.2.2 Bewegingsdetectie
-Het systeem moet bewegingen van de ondergrond of externe verstoringen kunnen detecteren met geschikte sensoren.
-#### 1.2.3 Realtime dataverwerking 
-Het systeem moet sensorwaarden lokaal verwerken met voldoende snelheid om realtime servo-aansturing mogelijk te maken.
+#### 1.1.2 Sensor Integration and Data Processing
+The system shall reliably collect, process, and interpret relevant motion data on an embedded platform.
 
-#### 1.2.4 Beslissingsalgoritme
-Het systeem moet een algoritme implementeren dat op basis van de verzamelde data bepaalt wanneer en hoe de servos aan te sturen.
+#### 1.1.3 Personalization and Comfort Modeling
+The system shall support individual user preferences or scenarios (for example correction speed and maximum tilt tolerance) through configurable parameters.
 
+#### 1.1.4 Reliable and Safe Embedded Architecture
+The system shall operate stably, safely, and energy-efficiently in different usage environments (table, desk, education, recreation).
 
-#### 1.2.5 Servo Aansturing
-   Het systeem moet servos kunnen aansturen (positie en snelheid) op basis van de output van het beslissingsalgoritme en een PID-regelaar implementeren voor nauwkeurige bekerstabiliteit.
+### 1.2 Functional Requirements
+#### 1.2.1 Cup Tilt Measurement
+The system shall measure or track the cup tilt angle using an appropriate sensor.
 
-   
-#### 1.2.6 Handmatige override
-   Het systeem moet een handmatige override-functie bieden waarmee gebruikers de servo-instellingen kunnen aanpassen, zelfs wanneer automatische regeling actief is.
+#### 1.2.2 Motion Detection
+The system shall detect motion of the surface or external disturbances using appropriate sensors.
 
-#### 1.2.7 Gebruikersinstellingen
-Het systeem moet gebruikersinstellingen kunnen opslaan en toepassen, zoals maximale helling, correctiesnelheid of gevoeligheidsniveaus voor externe bewegingen.
+#### 1.2.3 Real-Time Data Processing
+The system shall process sensor values locally with sufficient speed to enable real-time servo control.
 
-#### 1.2.8 Gebruikersinterface
-   Het systeem moet een eenvoudige gebruikersinterface bieden (bijv. knoppen, display) voor het weergeven van statusinformatie en het aanpassen van instellingen.
+#### 1.2.4 Decision Algorithm
+The system shall implement an algorithm that determines when and how to actuate the servos based on collected data.
 
-#### 1.2.9 Veiligheid en foutafhandeling
-   Het systeem moet watchdog-timers implementeren en foutcondities detecteren (bijv. sensorfouten, servo-storingen) om veilige werking te garanderen.
+#### 1.2.5 Servo Control
+The system shall control servo position and speed based on decision algorithm output and shall implement a PID controller for accurate cup stabilization.
 
-#### 1.2.10 Energie-efficiëntie
-   Het systeem moet energiezuinig zijn, met functies zoals slaapstand of verminderde samplingfrequentie wanneer geen beweging of activiteit wordt gedetecteerd.
+#### 1.2.6 Manual Override
+The system shall provide a manual override function that allows users to adjust servo settings, even when automatic control is active.
 
-### 1.3 Non-Functionele Eisen
-#### 1.3.1 Betrouwbaarheid
-Het systeem moet betrouwbaar functioneren onder verschillende omgevingsomstandigheden en gedurende langere perioden zonder falen.
-#### 1.3.2 Veiligheid
-Het systeem moet veilig zijn in gebruik, zonder risico op schade aan de beker, servos of gebruiker.
-#### 1.3.3 Gebruiksvriendelijkheid
-Het systeem moet eenvoudig te bedienen zijn, met een intuïtieve gebruikersinterface en duidelijke feedback over de status en werking.
+#### 1.2.7 User Settings
+The system shall store and apply user settings such as maximum tilt, correction speed, and sensitivity levels for external motion.
 
-#### 1.3.4 Opstarttijd
-Het systeem moet binnen 10 seconden na inschakeling volledig operationeel zijn.
-#### 1.3.5 Onderhoudbaarheid
-Het systeem moet gemakkelijk te onderhouden zijn, met modulaire componenten en duidelijke documentatie voor foutopsporing en reparatie.
+#### 1.2.8 User Interface
+The system shall provide a simple user interface (for example buttons and/or a display) for status information and settings adjustment.
+
+#### 1.2.9 Safety and Fault Handling
+The system shall implement watchdog timers and detect fault conditions (for example sensor failures and servo faults) to ensure safe operation.
+
+#### 1.2.10 Energy Efficiency
+The system shall be energy-efficient, including features such as sleep mode or reduced sampling frequency when no motion or activity is detected.
+
+#### 1.2.11 Load Capacity and Cup Mass Limit
+The system shall safely support a total cup load (cup + liquid) up to **1.0 kg** without structural damage, uncontrolled oscillation, or loss of closed-loop control.
+
+### 1.3 Non-Functional Requirements
+#### 1.3.1 Reliability
+The system shall operate reliably under different environmental conditions and over extended periods without failure.
+
+#### 1.3.2 Safety
+The system shall be safe to use, with no unacceptable risk of damage to the cup, servos, or user.
+
+#### 1.3.3 Usability
+The system shall be easy to operate, with an intuitive user interface and clear feedback on status and behavior.
+
+#### 1.3.4 Startup Time
+The system shall be fully operational within 10 seconds after power-on.
+
+#### 1.3.5 Maintainability
+The system shall be easy to maintain, with modular components and clear documentation for troubleshooting and repair.
+
+#### 1.3.6 Stability Requirement
+Under normal operation and disturbances up to **8°**, the system shall keep the cup stable with a residual tilt not exceeding **2°** and no spilling.
+
+#### 1.3.7 Maximum Platform Tilt Angle
+The system shall remain controllable and safe up to a platform tilt angle of **12°**. Above this limit, it shall enter a safe mode and notify the user.
