@@ -120,7 +120,7 @@ void touch_driver_task(void *pvParameters)
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to read touch data");
+            ESP_LOGE(TAG,ignore "Failed to read touch data");
         }
 
         vTaskDelay(pdMS_TO_TICKS(TOUCH_POLL_MS));
