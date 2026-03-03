@@ -1,4 +1,19 @@
 
+
+2 sensoren temperatuur
+IR sensor
+
+Engels schrijven
+
+Documentatie bij deliverables
+
+Paper elektrischeschema 
+
+
+
+
+
+
 # Project Scope Bepaling 
 
 
