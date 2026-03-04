@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-The automatic stabilizing cup is a project by 5 students for the Embedded systems course.
+The automatic Dynamic Cup Balancing System is a project by 5 students for the Embedded systems course.
 
 This document is going more in depth of all the stakeholders in the project and how they affect the project itself.
 
