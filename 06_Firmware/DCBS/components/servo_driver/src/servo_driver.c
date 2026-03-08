@@ -4,53 +4,106 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 
-#define SERVO_MIN_ANGLE_DEG (-90.0f)
-#define SERVO_MAX_ANGLE_DEG (90.0f)
-#define SERVO_TASK_PERIOD_MS (20)
-#define SERVO_TASK_STEP_DEG (2.0f)
-#define SERVO_CMD_QUEUE_LEN (8)
+#define SERVO_DEFAULT_MIN_ANGLE_DEG (-90.0f)
+#define SERVO_DEFAULT_MAX_ANGLE_DEG (90.0f)
+#define SERVO_DEFAULT_TASK_PERIOD_MS (20U)
+#define SERVO_DEFAULT_TASK_STEP_DEG (2.0f)
+#define SERVO_DEFAULT_CMD_QUEUE_LEN (8U)
+#define SERVO_DEFAULT_TASK_STACK_SIZE (2048U)
+#define SERVO_DEFAULT_TASK_PRIORITY (5U)
 
-static QueueHandle_t s_servo_cmd_queue = NULL;
-static TaskHandle_t s_servo_task_handle = NULL;
 
-static float clamp_angle(float angle)
+
+static void servo_apply_defaults(servo_t *servo)
 {
-    if (angle < SERVO_MIN_ANGLE_DEG)
+    if (servo->min_angle_deg >= servo->max_angle_deg)
     {
-        return SERVO_MIN_ANGLE_DEG;
+        servo->min_angle_deg = SERVO_DEFAULT_MIN_ANGLE_DEG;
+        servo->max_angle_deg = SERVO_DEFAULT_MAX_ANGLE_DEG;
     }
-    if (angle > SERVO_MAX_ANGLE_DEG)
+
+    if (servo->task_period_ms == 0U)
     {
-        return SERVO_MAX_ANGLE_DEG;
+        servo->task_period_ms = SERVO_DEFAULT_TASK_PERIOD_MS;
+    }
+
+    if (servo->task_step_deg <= 0.0f)
+    {
+        servo->task_step_deg = SERVO_DEFAULT_TASK_STEP_DEG;
+    }
+
+    if (servo->cmd_queue_len == 0U)
+    {
+        servo->cmd_queue_len = SERVO_DEFAULT_CMD_QUEUE_LEN;
+    }
+
+    if (servo->task_stack_size == 0U)
+    {
+        servo->task_stack_size = SERVO_DEFAULT_TASK_STACK_SIZE;
+    }
+
+    if (servo->task_priority == 0U)
+    {
+        servo->task_priority = SERVO_DEFAULT_TASK_PRIORITY;
+    }
+
+    if (servo->speed_mode != LEDC_HIGH_SPEED_MODE && servo->speed_mode != LEDC_LOW_SPEED_MODE)
+    {
+        servo->speed_mode = LEDC_HIGH_SPEED_MODE;
+    }
+
+    if (servo->timer_num > LEDC_TIMER_3)
+    {
+        servo->timer_num = LEDC_TIMER_0;
+    }
+
+    if (servo->channel > LEDC_CHANNEL_7)
+    {
+        servo->channel = LEDC_CHANNEL_0;
+    }
+}
+
+// Clamp angle to servo limits
+static float clamp_angle(const servo_t *servo, float angle)
+{
+    if (angle < servo->min_angle_deg)
+    {
+        return servo->min_angle_deg;
+    }
+    if (angle > servo->max_angle_deg)
+    {
+        return servo->max_angle_deg;
     }
     return angle;
 }
 
+// Servo control task
 static void servo_task(void *arg)
 {
     servo_t *servo = (servo_t *)arg;
+    QueueHandle_t cmd_queue = (QueueHandle_t)servo->cmd_queue_handle;
     servo_cmd_t cmd;
-    float current_angle = clamp_angle(servo->current_angle);
-    float target_angle = clamp_angle(servo->target_angle);
+    float current_angle = clamp_angle(servo, servo->current_angle);
+    float target_angle = clamp_angle(servo, servo->target_angle);
 
     while (1)
     {
-        while (xQueueReceive(s_servo_cmd_queue, &cmd, 0) == pdPASS)
+        while (xQueueReceive(cmd_queue, &cmd, 0) == pdPASS)
         {
-            target_angle = clamp_angle(cmd.target_angle);
+            target_angle = clamp_angle(servo, cmd.target_angle);
             if (cmd.immediate)
             {
                 current_angle = target_angle;
             }
         }
 
-        if (current_angle < (target_angle - SERVO_TASK_STEP_DEG))
+        if (current_angle < (target_angle - servo->task_step_deg))
         {
-            current_angle += SERVO_TASK_STEP_DEG;
+            current_angle += servo->task_step_deg;
         }
-        else if (current_angle > (target_angle + SERVO_TASK_STEP_DEG))
+        else if (current_angle > (target_angle + servo->task_step_deg))
         {
-            current_angle -= SERVO_TASK_STEP_DEG;
+            current_angle -= servo->task_step_deg;
         }
         else
         {
@@ -60,20 +113,21 @@ static void servo_task(void *arg)
         servo->current_angle = current_angle;
         servo->target_angle = target_angle;
         servo_rotate(servo, current_angle);
-        vTaskDelay(pdMS_TO_TICKS(SERVO_TASK_PERIOD_MS));
+        vTaskDelay(pdMS_TO_TICKS(servo->task_period_ms));
     }
 }
 
 // Initialize the servo
 void servo_init(servo_t *servo)
 {
-    servo->current_angle = clamp_angle(servo->current_angle);
-    servo->target_angle = clamp_angle(servo->target_angle);
+    servo_apply_defaults(servo);
+    servo->current_angle = clamp_angle(servo, servo->current_angle);
+    servo->target_angle = clamp_angle(servo, servo->target_angle);
 
     // Configure the LEDC timer
     ledc_timer_config_t timer_conf = {
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .timer_num = LEDC_TIMER_0,
+        .speed_mode = servo->speed_mode,
+        .timer_num = servo->timer_num,
         .duty_resolution = LEDC_TIMER_16_BIT,
         .freq_hz = 50, // Standard servo frequency
         .clk_cfg = LEDC_AUTO_CLK};
@@ -82,35 +136,36 @@ void servo_init(servo_t *servo)
     // Configure the LEDC channel for the servo
     ledc_channel_config_t ch_conf = {
         .gpio_num = servo->gpio_pin,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .channel = LEDC_CHANNEL_0,
+        .speed_mode = servo->speed_mode,
+        .channel = servo->channel,
         .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_0,
+        .timer_sel = servo->timer_num,
         .duty = 0,
         .hpoint = 0};
     ledc_channel_config(&ch_conf);
 
     int pulse = angle_to_pulse_us(servo, servo->current_angle);
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, pulse);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+    ledc_set_duty(servo->speed_mode, servo->channel, pulse);
+    ledc_update_duty(servo->speed_mode, servo->channel);
 }
 
 // Rotate the servo to a specific angle
 void servo_rotate(servo_t *servo, float angle)
 {
-    servo->target_angle = angle;
-    int pulse = angle_to_pulse_us(servo, angle);
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, pulse);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+    servo->target_angle = clamp_angle(servo, angle);
+    int pulse = angle_to_pulse_us(servo, servo->target_angle);
+    ledc_set_duty(servo->speed_mode, servo->channel, pulse);
+    ledc_update_duty(servo->speed_mode, servo->channel);
 }
 
 int angle_to_pulse_us(servo_t *servo, float angle)
 {
-    angle = clamp_angle(angle);
+    angle = clamp_angle(servo, angle);
 
-    // For centered servos: -90° to +90° maps to min_pulse_us to max_pulse_us
-    // Convert angle range from [-90, +90] to [0, 180] then calculate pulse
-    float pulse_us = servo->min_pulse_us + ((angle + 90.0) / 180.0) * (servo->max_pulse_us - servo->min_pulse_us);
+    // Map configured angle range [min_angle_deg, max_angle_deg] to pulse range.
+    float angle_span = servo->max_angle_deg - servo->min_angle_deg;
+    float normalized = (angle - servo->min_angle_deg) / angle_span;
+    float pulse_us = servo->min_pulse_us + (normalized * (servo->max_pulse_us - servo->min_pulse_us));
     
     // Convert to LEDC duty cycle (16-bit timer at 50Hz = 20ms period)
     // duty = (pulse_us / 20000) * 65536
@@ -126,49 +181,61 @@ esp_err_t servo_start_task(servo_t *servo)
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (s_servo_task_handle != NULL)
+    if (servo->task_handle != NULL)
     {
         return ESP_OK;
     }
 
-    s_servo_cmd_queue = xQueueCreate(SERVO_CMD_QUEUE_LEN, sizeof(servo_cmd_t));
-    if (s_servo_cmd_queue == NULL)
+    servo_apply_defaults(servo);
+
+    QueueHandle_t cmd_queue = xQueueCreate(servo->cmd_queue_len, sizeof(servo_cmd_t));
+    if (cmd_queue == NULL)
     {
         return ESP_ERR_NO_MEM;
     }
 
+    servo->cmd_queue_handle = (void *)cmd_queue;
+    TaskHandle_t task_handle = NULL;
+
     BaseType_t task_created = xTaskCreate(
         servo_task,
         "servo_task",
-        2048,
+        servo->task_stack_size,
         servo,
-        5,
-        &s_servo_task_handle);
+        servo->task_priority,
+        &task_handle);
 
     if (task_created != pdPASS)
     {
-        vQueueDelete(s_servo_cmd_queue);
-        s_servo_cmd_queue = NULL;
+        vQueueDelete(cmd_queue);
+        servo->cmd_queue_handle = NULL;
+        servo->task_handle = NULL;
         return ESP_FAIL;
     }
+
+    servo->task_handle = (void *)task_handle;
 
     return ESP_OK;
 }
 
 esp_err_t servo_send_command(servo_t *servo, const servo_cmd_t *cmd)
 {
-    (void)servo;
+    if (servo == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
 
     if (cmd == NULL)
     {
         return ESP_ERR_INVALID_ARG;
     }
-    if (s_servo_cmd_queue == NULL)
+    QueueHandle_t cmd_queue = (QueueHandle_t)servo->cmd_queue_handle;
+    if (cmd_queue == NULL)
     {
         return ESP_ERR_INVALID_STATE;
     }
 
-    if (xQueueSend(s_servo_cmd_queue, cmd, pdMS_TO_TICKS(20)) != pdPASS)
+    if (xQueueSend(cmd_queue, cmd, pdMS_TO_TICKS(20)) != pdPASS)
     {
         return ESP_ERR_TIMEOUT;
     }
