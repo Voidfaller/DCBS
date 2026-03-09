@@ -16,7 +16,7 @@
                 <mxCell id="6" value="" style="triangle;whiteSpace=wrap;html=1;rotation=-90;" parent="1" vertex="1">
                     <mxGeometry x="470" y="240" width="60" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="7" value="(Max Tiilt Tolerance)&lt;div&gt;degrees&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                <mxCell id="7" value="(Max Tilt Tolerance)&amp;nbsp;&lt;span style=&quot;color: rgb(63, 63, 63); background-color: transparent;&quot;&gt;°&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="310" y="450" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="8" value="Max Tilt Tolerance" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
@@ -31,53 +31,65 @@
                 <mxCell id="12" value="Manuel Override" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" parent="1" vertex="1">
                     <mxGeometry x="580" y="360" width="80" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="14" value="" style="swimlane;startSize=0;" vertex="1" parent="1">
+                <mxCell id="14" value="" style="swimlane;startSize=0;" parent="1" vertex="1">
                     <mxGeometry x="280" y="230" width="410" height="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="15" value="Required" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="15" value="Required" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="450" y="190" width="70" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="16" value="(correction speed)&lt;div&gt;cm/s&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="16" value="(correction speed)&lt;div&gt;cm/s&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="770" y="290" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="17" value="Correction Speed" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                <mxCell id="17" value="Correction Speed" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="770" y="260" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="18" value="" style="triangle;whiteSpace=wrap;html=1;rotation=90;" vertex="1" parent="1">
+                <mxCell id="18" value="" style="triangle;whiteSpace=wrap;html=1;rotation=90;" parent="1" vertex="1">
                     <mxGeometry x="930" y="320" width="60" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="19" value="" style="triangle;whiteSpace=wrap;html=1;rotation=-90;" vertex="1" parent="1">
+                <mxCell id="19" value="" style="triangle;whiteSpace=wrap;html=1;rotation=-90;" parent="1" vertex="1">
                     <mxGeometry x="930" y="240" width="60" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="20" value="(Max Tiilt Tolerance)&lt;div&gt;degrees&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="20" value="(Max Tiilt Tolerance)&lt;div&gt;degrees&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="770" y="450" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="21" value="Max Tilt Tolerance" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                <mxCell id="21" value="Max Tilt Tolerance" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="770" y="420" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="22" value="" style="triangle;whiteSpace=wrap;html=1;rotation=90;" vertex="1" parent="1">
+                <mxCell id="22" value="" style="triangle;whiteSpace=wrap;html=1;rotation=90;" parent="1" vertex="1">
                     <mxGeometry x="930" y="480" width="60" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="23" value="" style="triangle;whiteSpace=wrap;html=1;rotation=-90;" vertex="1" parent="1">
+                <mxCell id="23" value="" style="triangle;whiteSpace=wrap;html=1;rotation=-90;" parent="1" vertex="1">
                     <mxGeometry x="930" y="400" width="60" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="24" value="Manuel Override" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+                <mxCell id="24" value="Manuel Override" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" parent="1" vertex="1">
                     <mxGeometry x="1050" y="280" width="80" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="25" value="Configuration 1" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="25" value="Configuration 1" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="1030" y="420" width="120" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="27" value="Configuration 2" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="27" value="Configuration 2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="1030" y="470" width="120" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="28" value="Configuration 3" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="28" value="Configuration 3" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="1030" y="520" width="120" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="29" value="" style="swimlane;startSize=0;" vertex="1" parent="1">
+                <mxCell id="29" value="" style="swimlane;startSize=0;" parent="1" vertex="1">
                     <mxGeometry x="740" y="230" width="440" height="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="30" value="Requirements with optional saved configuration" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="30" value="Requirements with optional saved configuration" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="820" y="190" width="280" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="(correction speed) cm/s&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;(Max Tilt Tolerance) °&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="440" y="740" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="Display" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="490" y="688" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="&lt;u&gt;&lt;b&gt;(correction speed) cm/s&lt;/b&gt;&lt;/u&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;(Max Tilt Tolerance) °&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="720" y="740" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="Display When Changing Correction Speed" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="675" y="688" width="250" height="30" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
