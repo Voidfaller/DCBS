@@ -41,8 +41,27 @@ Het systeem moet gebruikersinstellingen kunnen opslaan en toepassen, zoals voork
 #### 1.2.9 Veiligheid en foutafhandeling
    Het systeem moet watchdog-timers implementeren en foutcondities detecteren (bijv. sensorfouten, ventilatorstoringen) om veilige werking te garanderen.
 
-#### 1.2.10 Energie-efficiëntie
-   Het systeem moet energiezuinig zijn, met functies zoals slaapstand of verminderde samplingfrequentie wanneer geen activiteit wordt gedetecteerd.
+#### 1.2.10 Energy Efficiency
+The system shall be energy-efficient, including features such as sleep mode or reduced sampling frequency when no motion or activity is detected.
+
+#### 1.2.11 Load Capacity and Cup Mass Limit
+The system shall safely support a total cup load (cup + liquid) up to **1.0 kg** without structural damage, uncontrolled oscillation, or loss of closed-loop control.
+
+### 1.2.12 Cup Physical Specifications
+The cup shall meet the following physical requirements:
+- **Diameter**: 80 ± 5 mm (at the widest point)
+- **Height**: 110 ± 10 mm (from bottom to rim)
+- **Cup Mass**: 250 ± 50 g (empty cup without any liquid)
+- **Material**: Standard ceramic, glass, or food-safe plastic
+- **Rim Design**: Suitable for preventing spillage during dynamic tilting
+
+### 1.2.13 Liquid Specifications
+The system shall be designed to handle liquids with the following characteristics:
+- **Maximum Volume**: 300 ml (filled to 80% capacity to prevent spillage)
+- **Liquid Mass**: Up to 750 g (combined with cup mass, within the 1.0 kg total load limit)
+- **Liquid Type**: Water, coffee, tea, or similar beverages with density between 0.9 and 1.1 g/cm³
+- **Temperature Range**: 4°C to 85°C (cold to hot beverages)
+- **Viscosity**: Low to medium viscosity liquids (similar to water up to thick coffee)
 
 ### 1.3 Non-Functionele Eisen
 #### 1.3.1 Betrouwbaarheid
