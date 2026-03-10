@@ -27,7 +27,7 @@ The system shall process sensor values locally with sufficient speed to enable r
 The system shall implement an algorithm that determines when and how to actuate the servos based on collected data.
 
 #### 1.2.5 Servo Control
-The system shall control servo position and speed based on decision algorithm output and shall implement a PID controller for accurate cup stabilization.
+The system shall control servo position and speed based on decision algorithm output
 
 #### 1.2.6 Manual Override
 The system shall provide a manual override function that allows users to adjust servo settings, even when automatic control is active.
@@ -62,6 +62,12 @@ The system shall be designed to handle liquids with the following characteristic
 - **Liquid Type**: Water, coffee, tea, or similar beverages with density between 0.9 and 1.1 g/cm³
 - **Temperature Range**: 4°C to 85°C (cold to hot beverages)
 - **Viscosity**: Low to medium viscosity liquids (similar to water up to thick coffee)
+
+### 1.2.14 Data filtering and Noise Reduction
+The system shall implement data filtering techniques (for example Kalman filters) to reduce sensor noise and improve the accuracy of tilt angle measurements and motion detection.
+
+### 1.2.15 PID-Based Control Algorithm
+The system shall implement a PID (Proportional-Integral-Derivative) control algorithm to adjust servo positions based on the measured tilt angle and detected motion, ensuring smooth and responsive stabilization of the cup.
 
 ### 1.3 Non-Functional Requirements
 #### 1.3.1 Reliability
