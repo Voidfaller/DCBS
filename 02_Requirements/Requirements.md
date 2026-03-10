@@ -1,92 +1,137 @@
 # Requirements – Dynamic Cup Balancing System (DCBS)
 
-### 1.1 Epics
-#### 1.1.1 Adaptive Stabilization
-The system shall dynamically regulate the cup tilt angle by automatically controlling servos based on environmental and motion data.
+## 1. System Overview
+The Dynamic Cup Balancing System (DCBS) is an embedded system designed to stabilize a cup containing liquid by dynamically adjusting a platform using servo actuators.  
+The system measures platform motion and cup tilt using inertial sensors and compensates for disturbances through a PID-based control loop.  
+It is intended for educational, demonstration, or desk/table usage.
 
-#### 1.1.2 Sensor Integration and Data Processing
-The system shall reliably collect, process, and interpret relevant motion data on an embedded platform.
+---
 
-#### 1.1.3 Personalization and Comfort Modeling
-The system shall support individual user preferences or scenarios (for example correction speed and maximum tilt tolerance) through configurable parameters.
+## 2. Epics
 
-#### 1.1.4 Reliable and Safe Embedded Architecture
-The system shall operate stably, safely, and energy-efficiently in different usage environments (table, desk, education, recreation).
+### E1 – Adaptive Stabilization
+The system shall automatically stabilize the cup by adjusting the platform orientation based on measured tilt and detected disturbances.
 
-### 1.2 Functional Requirements
-#### 1.2.1 Cup Tilt Measurement
-The system shall measure or track the cup tilt angle using an appropriate sensor.
+### E2 – Sensor Integration and Data Processing
+The system shall collect motion data from sensors, filter the measurements, and compute tilt estimates for use in the stabilization algorithm.
 
-#### 1.2.2 Motion Detection
-The system shall detect motion of the surface or external disturbances using appropriate sensors.
+### E3 – Personalization and User Interaction
+The system shall allow users to view system status and configure stabilization parameters.
 
-#### 1.2.3 Real-Time Data Processing
-The system shall process sensor values locally with sufficient speed to enable real-time servo control.
+### E4 – Reliable and Efficient Embedded Architecture
+The system shall operate reliably by detecting faults and entering power down states when necessary.
 
-#### 1.2.4 Decision Algorithm
-The system shall implement an algorithm that determines when and how to actuate the servos based on collected data.
+---
 
-#### 1.2.5 Servo Control
-The system shall control servo position and speed based on decision algorithm output
+## 3. Functional Requirements
 
-#### 1.2.6 Manual Override
-The system shall provide a manual override function that allows users to adjust servo settings, even when automatic control is active.
+### FR1 – Cup Tilt Measurement
+The system shall measure the cup tilt angle in two axes (pitch and roll) using an inertial sensor.  
+- Measurement frequency: **≥50 Hz**  
+- Measurement accuracy: **±1°**
 
-#### 1.2.7 User Settings
-The system shall store and apply user settings such as maximum tilt, correction speed, and sensitivity levels for external motion.
+### FR2 – Motion Detection
+The system shall detect external disturbances that cause platform tilt or acceleration.  
+- Disturbances greater than **1°** shall trigger stabilization actions.
 
-#### 1.2.8 User Interface
-The system shall provide a simple user interface (for example buttons and/or a display) for status information and settings adjustment.
+### FR3 – Data Filtering
+The system shall apply a filtering algorithm (e.g., Kalman or complementary filter) to sensor data to reduce noise.  
+- Filtered tilt estimate update frequency: **≥50 Hz**
 
-#### 1.2.9 Safety and Fault Handling
-The system shall implement watchdog timers and detect fault conditions (for example sensor failures and servo faults) to ensure safe operation.
+### FR4 – Real-Time Data Processing
+The system shall process sensor measurements and compute actuator commands within **20 ms** of receiving new sensor data.
 
-#### 1.2.10 Energy Efficiency
-The system shall be energy-efficient, including features such as sleep mode or reduced sampling frequency when no motion or activity is detected.
+### FR5 – PID Control Algorithm
+The system shall compute stabilization corrections using a **PID controller** based on measured tilt.  
+- PID output shall be used to adjust servo positions smoothly and responsively.
 
-#### 1.2.11 Load Capacity and Cup Mass Limit
-The system shall safely support a total cup load (cup + liquid) up to **1.0 kg** without structural damage, uncontrolled oscillation, or loss of closed-loop control.
+### FR6 – Servo Control
+The system shall control servo motors to adjust platform orientation.  
+- Update frequency: **≥50 Hz**  
+- Servo positions must remain within mechanical limits.
 
-### 1.2.12 Cup Physical Specifications
-The cup shall meet the following physical requirements:
-- **Diameter**: 80 ± 5 mm (at the widest point)
-- **Height**: 110 ± 10 mm (from bottom to rim)
-- **Cup Mass**: 250 ± 50 g (empty cup without any liquid)
-- **Material**: Standard ceramic, glass, or food-safe plastic
-- **Rim Design**: Suitable for preventing spillage during dynamic tilting
+### FR7 – Manual Override
+The system shall allow the user to disable automatic stabilization and manually control servo positions.  
+- Manual control overrides PID stabilization while active.
 
-### 1.2.13 Liquid Specifications
-The system shall be designed to handle liquids with the following characteristics:
-- **Maximum Volume**: 300 ml (filled to 80% capacity to prevent spillage)
-- **Liquid Mass**: Up to 750 g (combined with cup mass, within the 1.0 kg total load limit)
-- **Liquid Type**: Water, coffee, tea, or similar beverages with density between 0.9 and 1.1 g/cm³
-- **Temperature Range**: 4°C to 85°C (cold to hot beverages)
-- **Viscosity**: Low to medium viscosity liquids (similar to water up to thick coffee)
+### FR8 – User Settings
+The system shall allow users to configure stabilization parameters:  
+- Correction speed  
+- Sensitivity  
+- Maximum allowable tilt  
+Settings shall persist across power cycles.
 
-### 1.2.14 Data filtering and Noise Reduction
-The system shall implement data filtering techniques (for example Kalman filters) to reduce sensor noise and improve the accuracy of tilt angle measurements and motion detection.
+### FR9 – User Interface
+The system shall provide a user interface with buttons and/or a display.  
+The interface shall allow the user to:  
+- View current tilt angle  
+- View system status  
+- Adjust system settings
 
-### 1.2.15 PID-Based Control Algorithm
-The system shall implement a PID (Proportional-Integral-Derivative) control algorithm to adjust servo positions based on the measured tilt angle and detected motion, ensuring smooth and responsive stabilization of the cup.
+### FR10 – Safety and Fault Handling
+The system shall detect hardware and software faults, including:  
+- Sensor communication failure  
+- Servo control failure  
+- Software execution failure  
+Detected faults shall trigger safe behavior.
 
-### 1.3 Non-Functional Requirements
-#### 1.3.1 Reliability
-The system shall operate reliably under different environmental conditions and over extended periods without failure.
+### FR11 – Watchdog Supervision
+The system shall implement a watchdog timer to detect software failures.  
+- On timeout, the system shall reset and return to a safe initialization state.
 
-#### 1.3.2 Safety
-The system shall be safe to use, with no unacceptable risk of damage to the cup, servos, or user.
+### FR12 – Energy Efficiency
+The system shall reduce energy consumption during inactivity.  
+- If no motion is detected for **60 seconds**, the system shall reduce sensor sampling and suspend servo movement.  
+- Normal operation shall resume automatically when motion is detected.
 
-#### 1.3.3 Usability
-The system shall be easy to operate, with an intuitive user interface and clear feedback on status and behavior.
+---
 
-#### 1.3.4 Startup Time
-The system shall be fully operational within 10 seconds after power-on.
+## 4. Non-Functional Requirements
 
-#### 1.3.5 Maintainability
-The system shall be easy to maintain, with modular components and clear documentation for troubleshooting and repair.
+### NFR1 – Startup Time
+The system shall enter operational mode within **10 seconds** after power-on.
 
-#### 1.3.6 Stability Requirement
-Under normal operation and disturbances up to **8°**, the system shall keep the cup stable with a residual tilt not exceeding **2°** and no spilling.
+### NFR2 – Stability Requirement
+During disturbances up to **8° platform tilt**, the system shall maintain a residual cup tilt of **≤2°**.
 
-#### 1.3.7 Maximum Platform Tilt Angle
-The system shall remain controllable and safe up to a platform tilt angle of **12°**. Above this limit, it shall enter a safe mode and notify the user.
+### NFR3 – Maximum Platform Tilt
+The system shall remain controllable up to **12° platform tilt**.  
+- Exceeding this limit triggers safe mode and user notification.
+
+### NFR4 – Reliability
+The system shall operate continuously for **≥8 hours** without failure.
+
+### NFR5 – Usability
+The user interface shall provide clear feedback on system status, including tilt, mode, and fault notifications.
+
+### NFR6 – Maintainability
+The system architecture shall be modular, separating:  
+- Sensor drivers  
+- State estimation/filter  
+- PID controller  
+- Servo drivers  
+- User interface  
+- Watchdog/fault handling  
+Each module shall be independently testable.
+
+---
+
+## 5. System Constraints
+
+### SC1 – Load Capacity
+The system shall safely support a total load of **1.0 kg** (cup + liquid) without structural damage or loss of control.
+
+### SC2 – Cup Physical Specifications
+The cup shall have:  
+- Diameter: **80 ± 5 mm**  
+- Height: **110 ± 10 mm**  
+- Mass (empty): **250 ± 50 g**  
+- Material: ceramic, glass, or food-safe plastic  
+- Rim design suitable to prevent spillage
+
+### SC3 – Liquid Specifications
+The system shall support liquids with:  
+- Maximum volume: **300 ml**  
+- Density: **0.9–1.1 g/cm³**  
+- Temperature range: **4°C–85°C**  
+- Low to medium viscosity (e.g., water to thick coffee)
