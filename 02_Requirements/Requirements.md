@@ -84,6 +84,8 @@ The system shall reduce energy consumption during inactivity.
 - If no motion is detected for **60 seconds**, the system shall reduce sensor sampling and suspend servo movement.  
 - Normal operation shall resume automatically when motion is detected.
 
+### FR13 – User Detection
+The system shall detect user presence through capacitive touch interrupts.
 ---
 
 ## 4. Non-Functional Requirements
