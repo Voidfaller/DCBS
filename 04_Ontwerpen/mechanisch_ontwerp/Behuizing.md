@@ -12,6 +12,11 @@ MPU6050 sensor
 ESP32 + voeding
 Display
 
+De servo’s staan haaks op elkaar zodat ze twee richtingen kunnen corrigeren.
+
+Beweging:
+Servo 1 : kantelt links/rechts (X-axis)
+Servo 2 : kantelt voor/achter (Y-axis)
 
 ## 2. Afmetingen
 
@@ -39,7 +44,6 @@ Termination = Through All
 binnen Frame: 12 
 
 
-
 ### 2.3 InnerFrame Y-as
 
 100 *100 *
@@ -57,8 +61,12 @@ twee gaten
 15mm / boven
 
 
+## 3. Hardware 
 
 
-## 3. basisbehuizing 
-zie inventor-project.
+Base Plate: Voeding - Esp32 - Servo 
+Servo Bracket:  Houdt servo X
+Outer Frame: draagt inner frame, draait x-as 
+inner frame: Draagt Cup Holder, tilt sensor 
+
 
