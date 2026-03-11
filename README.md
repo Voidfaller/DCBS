@@ -1,5 +1,5 @@
 # Eindproject
-
+Test
 
 ## Doel van dit document
 Dit document dient als overzicht van het eindproject voor Embedded Systems. 
@@ -12,6 +12,7 @@ Het doel van dit project is het ontwerpen en implementeren van een embedded syst
 - Giovanni de Groot (1067652)
 - Issam Mahrik (1082232)
 - Ouassim Rafiq (0966074)
+- Stijn Driessen(0988980)
 
   
 ## Links
