@@ -16,7 +16,7 @@ The microcontroller will process the sensor data and adjust the position of the 
 #### **Deliverables**
 We will deliver the following components for our project:
 1. **Sensors:** We will use **gyroscope** to collect data about the movements caused by the user.
-2. **Microcontroller:** We will use a **STM32** to process the sensor data and adjust the position of the cup using actuators to counteract the tremors, keeping the cup stable. This controller supports **I2C/SPI** and embedded Linux.
+2. **Microcontroller:** We will use a **ESP32** to process the sensor data and adjust the position of the cup using actuators to counteract the tremors, keeping the cup stable. This controller supports **I2C/SPI** and embedded Linux.
 3. **Actuator:** We will install **2 stepper** motors that can automatically adjust the position of the cup based on the data from the sensors. This will be managed by a **PID-Controller** that adjusts the speed of the actuators based on the sensor data.
 4. **Software:** We will develop software using **embedded Linux**. The software will include features such as a watchdog timer, sleep mode, hardware interrupts, and software interrupts.
 5. **Interface:** We will develop an interface for an **OLED display** that shows the current status of the cup, such as the angle of tilt and the speed of the actuators.
