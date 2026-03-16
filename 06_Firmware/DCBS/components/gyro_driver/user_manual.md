@@ -44,3 +44,36 @@ The driver performs the following tasks:
 ## gyro_driver_init()
 
 Initializes the I2C bus and wakes up the MPU6050 sensor
+
+## gyro_driver_read_gyro()
+
+Reads gyroscope data from the sensor.
+
+## gyro_driver_read_accel()
+
+Reads accelerometer data from the sensor.
+
+---
+
+# Data Conversion
+
+The driver converts raw sensor values using the following scale factors:
+
+| Sensor | Conversion |
+|------|------|
+| Gyroscope | raw / 131 → °/s |
+| Accelerometer | raw / 16384 → g |
+
+These values correspond to the default sensor configuration of the MPU6050.
+
+---
+
+
+# Related Modules
+
+This driver is typically used together with:
+
+- state_estimator
+- pid_controller
+- servo_driver
+
