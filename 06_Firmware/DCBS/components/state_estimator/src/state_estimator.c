@@ -1,54 +1,51 @@
 #include "state_estimator.h"
-#include "gyro_driver.h"
 #include <math.h>
 
-#define ALPHA 0.98f
+#define RAD_TO_DEG 57.2958f
+// Pid controller krijgt dit later pitch and roll
+// bijvoorbeeld pitch = +5° → servo corrigeert
+// roll = -3° → andere servo corrigeert
+// complementary filter coefficient
+#define COMPLEMENTARY_ALPHA 0.98f
 
-static state_estimate_t current_state;
+static orientation_t orientation;
 
-static gyro_data_t gyro;
-static accel_data_t accel;
-
-esp_err_t state_estimator_init(void)
+void state_estimator_init(void)
 {
-    current_state.roll = 0.0f;
-    current_state.pitch = 0.0f;
-
-    return ESP_OK;
+    orientation.pitch = 0.0f;
+    orientation.roll = 0.0f;
 }
 
-esp_err_t state_estimator_update(float dt)
+void state_estimator_update(
+    const gyro_data_t *gyro,
+    const accel_data_t *accel,
+    float dt)
 {
-    esp_err_t err;
+    // Gyroscope integration
+    float gyro_pitch = orientation.pitch + gyro->gyro_y * dt;
+    float gyro_roll  = orientation.roll  + gyro->gyro_x * dt;
 
-    err = gyro_driver_read_gyro(&gyro);
-    if (err != ESP_OK)
-        return err;
+    // Accelerometer angle calculation
+    float accel_pitch = atan2f(
+        accel->accel_x,
+        sqrtf(accel->accel_y * accel->accel_y +
+              accel->accel_z * accel->accel_z)) * RAD_TO_DEG;
 
-    err = gyro_driver_read_accel(&accel);
-    if (err != ESP_OK)
-        return err;
+    float accel_roll = atan2f(
+        accel->accel_y,
+        accel->accel_z) * RAD_TO_DEG;
 
-    float accel_roll = atan2f(accel.accel_y, accel.accel_z) * 180.0f / M_PI;
-    float accel_pitch = atan2f(-accel.accel_x,
-                               sqrtf(accel.accel_y * accel.accel_y +
-                                     accel.accel_z * accel.accel_z)) * 180.0f / M_PI;
+    // Complementary filter
+    orientation.pitch =
+        COMPLEMENTARY_ALPHA * gyro_pitch +
+        (1.0f - COMPLEMENTARY_ALPHA) * accel_pitch;
 
-    float gyro_roll = current_state.roll + gyro.gyro_x * dt;
-    float gyro_pitch = current_state.pitch + gyro.gyro_y * dt;
-
-    current_state.roll =
-        ALPHA * gyro_roll +
-        (1.0f - ALPHA) * accel_roll;
-
-    current_state.pitch =
-        ALPHA * gyro_pitch +
-        (1.0f - ALPHA) * accel_pitch;
-
-    return ESP_OK;
+    orientation.roll =
+        COMPLEMENTARY_ALPHA * gyro_roll +
+        (1.0f - COMPLEMENTARY_ALPHA) * accel_roll;
 }
 
-state_estimate_t state_estimator_get_state(void)
+orientation_t state_estimator_get_orientation(void)
 {
-    return current_state;
+    return orientation;
 }
