@@ -1,15 +1,18 @@
 #pragma once
 
-#include "esp_err.h"
+#include "gyro_driver.h"
 
 typedef struct
 {
-    float roll;
     float pitch;
-} state_estimate_t;
+    float roll;
+} orientation_t;
 
-esp_err_t state_estimator_init(void);
+void state_estimator_init(void);
 
-esp_err_t state_estimator_update(float dt);
+void state_estimator_update(
+    const gyro_data_t *gyro,
+    const accel_data_t *accel,
+    float dt);
 
-state_estimate_t state_estimator_get_state(void);
+orientation_t state_estimator_get_orientation(void);
