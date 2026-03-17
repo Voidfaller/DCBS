@@ -9,23 +9,24 @@
 #define COMPLEMENTARY_ALPHA 0.98f
 
 static orientation_t orientation;
-
+//Start altijd vlak (0) 
 void state_estimator_init(void)
 {
     orientation.pitch = 0.0f;
     orientation.roll = 0.0f;
 }
-
 void state_estimator_update(
     const gyro_data_t *gyro,
     const accel_data_t *accel,
     float dt)
 {
     // Gyroscope integration
+    // nieuwe hoek = oude hoek + snelheid × tijd
     float gyro_pitch = orientation.pitch + gyro->gyro_y * dt;
     float gyro_roll  = orientation.roll  + gyro->gyro_x * dt;
 
     // Accelerometer angle calculation
+    // Dit berekent de hoek t.o.v. zwaartekracht
     float accel_pitch = atan2f(
         accel->accel_x,
         sqrtf(accel->accel_y * accel->accel_y +
@@ -45,6 +46,7 @@ void state_estimator_update(
         (1.0f - COMPLEMENTARY_ALPHA) * accel_roll;
 }
 
+// return de huidige geschatte orientatie: PID_controller heeft dit nodig 
 orientation_t state_estimator_get_orientation(void)
 {
     return orientation;
