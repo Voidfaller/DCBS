@@ -1,5 +1,6 @@
 #include "servo_driver.h"
 #include "driver/ledc.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -12,7 +13,12 @@
 #define SERVO_DEFAULT_TASK_STACK_SIZE (2048U)
 #define SERVO_DEFAULT_TASK_PRIORITY (5U)
 
+static const char *TAG = "servo"; //Logging tag
 
+void servo_driver_init(void)
+{
+    ESP_LOGI(TAG, "Servo driver is initialized!!"); // Log test
+}
 
 static void servo_apply_defaults(servo_t *servo)
 {

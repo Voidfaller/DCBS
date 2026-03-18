@@ -35,6 +35,7 @@ typedef struct
 } servo_cmd_t;
 
 //functions
+void servo_driver_init(void); //startup function for testing
 void servo_init(servo_t *servo);
 void servo_rotate(servo_t *servo, float angle);
 esp_err_t servo_start_task(servo_t *servo);
