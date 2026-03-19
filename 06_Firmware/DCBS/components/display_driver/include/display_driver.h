@@ -60,7 +60,7 @@ typedef struct
     uint8_t pid_history_head;
 } display_t;
 
-void display_init(display_t *display, i2c_master_bus_handle_t bus_handle, uint8_t addr, int width, int height);
+esp_err_t display_init(display_t *display, uint8_t addr, int width, int height);
 void display_test(display_t *display);
 void display_clear(display_t *display);
 void display_flush(display_t *display);
@@ -71,8 +71,7 @@ void display_fillRect(display_t *display, int x, int y, int w, int h, uint8_t co
 void display_ui_init(display_t *display, const display_ui_setting_t *settings, size_t setting_count);
 void display_ui_handle_input(display_t *display, bool up_pressed, bool down_pressed, bool select_pressed, bool back_pressed);
 void display_ui_render(display_t *display, const display_ui_data_t *ui_data);
-esp_err_t display_ui_start_task(i2c_master_bus_handle_t bus_handle,
-                                uint8_t display_addr,
+esp_err_t display_ui_start_task(uint8_t display_addr,
                                 int width,
                                 int height,
                                 const display_ui_setting_t *settings,
