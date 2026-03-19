@@ -1,11 +1,16 @@
-#include <stdio.h>
-#include "servo_driver.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-
+#include "config_manager.h"
 #include "I2C_wrapper.h"
+
 void app_main(void)
 {
+
+    // Initialize configuration manager and load config
+    const app_config_t *cfg;
+    ESP_ERROR_CHECK(config_manager_init());
+    cfg = config_manager_get();
+    (void)cfg;
 
     // Initialize I2C wrapper
     i2c_wrapper_config_t i2c_cfg = {
@@ -17,12 +22,12 @@ void app_main(void)
         .enable_internal_pullup = true,
         .default_dev_speed_hz = 400000,
     };
-    i2c_wrapper_init(&i2c_cfg);
-    
+    ESP_ERROR_CHECK(i2c_wrapper_init(&i2c_cfg));
+
 
 
     while (1)
     {
-
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
