@@ -15,6 +15,7 @@ void state_estimator_init(void)
     orientation.pitch = 0.0f;
     orientation.roll = 0.0f;
 }
+// update de geschatte orientatie op basis van nieuwe sensor data
 void state_estimator_update(
     const gyro_data_t *gyro,
     const accel_data_t *accel,
@@ -27,6 +28,7 @@ void state_estimator_update(
 
     // Accelerometer angle calculation
     // Dit berekent de hoek t.o.v. zwaartekracht
+
     float accel_pitch = atan2f(
         accel->accel_x,
         sqrtf(accel->accel_y * accel->accel_y +
@@ -37,6 +39,7 @@ void state_estimator_update(
         accel->accel_z) * RAD_TO_DEG;
 
     // Complementary filter
+    // hier combineren we de gyroscoop en accelerometer data
     orientation.pitch =
         COMPLEMENTARY_ALPHA * gyro_pitch +
         (1.0f - COMPLEMENTARY_ALPHA) * accel_pitch;

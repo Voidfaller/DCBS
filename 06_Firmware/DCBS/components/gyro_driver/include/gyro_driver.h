@@ -17,8 +17,14 @@ typedef struct
     float accel_z;
 } accel_data_t;
 
-esp_err_t gyro_driver_init(void); // esp32 start I2C 
+// NIEUW: gecombineerde data (voor queue)
+typedef struct
+{
+    gyro_data_t gyro;
+    accel_data_t accel;
+} imu_data_t;
+
+esp_err_t gyro_driver_init(void);
 
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data);
-
 esp_err_t gyro_driver_read_accel(accel_data_t *data);
