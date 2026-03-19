@@ -1,4 +1,5 @@
 #include "display_driver.h"
+#include "I2C_wrapper.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <string.h>
@@ -470,19 +471,24 @@ void display_flush(display_t *display)
     }
 }
 
-void display_init(display_t *display, i2c_master_bus_handle_t bus_handle, uint8_t addr, int width, int height)
+esp_err_t display_init(display_t *display, uint8_t addr, int width, int height)
 {
+    esp_err_t ret;
+
+    if (display == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     display->addr = addr;
     display->width = width;
     display->height = height;
 
-    i2c_device_config_t dev_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = addr,
-        .scl_speed_hz = 100000,
-    };
-
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &display->dev_handle));
+    ret = i2c_wrapper_add_device(addr, 100000, &display->dev_handle);
+    if (ret != ESP_OK)
+    {
+        return ret;
+    }
 
     // SSD1306 initialization sequence
     vTaskDelay(pdMS_TO_TICKS(100));  // wait for display power-up
@@ -521,6 +527,7 @@ void display_init(display_t *display, i2c_master_bus_handle_t bus_handle, uint8_
     display->return_screen = DISPLAY_UI_SCREEN_PID;
 
     display_flush(display);
+    return ESP_OK;
 }
 
 void display_drawPixel(display_t *display, int x, int y, uint8_t color) // color: 0=off, 1=on
@@ -788,13 +795,13 @@ static void display_ui_task_run(void *arg)
     vTaskDelete(NULL);
 }
 
-esp_err_t display_ui_start_task(i2c_master_bus_handle_t bus_handle,
-                                uint8_t display_addr,
+esp_err_t display_ui_start_task(uint8_t display_addr,
                                 int width,
                                 int height,
                                 const display_ui_setting_t *settings,
                                 size_t setting_count)
 {
+    esp_err_t ret;
     BaseType_t created;
 
     if (s_ui_task_ctx.running)
@@ -808,7 +815,12 @@ esp_err_t display_ui_start_task(i2c_master_bus_handle_t bus_handle,
     s_ui_task_ctx.frame = 0;
     s_ui_task_ctx.running = true;
 
-    display_init(&s_ui_task_ctx.display, bus_handle, display_addr, width, height);
+    ret = display_init(&s_ui_task_ctx.display, display_addr, width, height);
+    if (ret != ESP_OK)
+    {
+        s_ui_task_ctx.running = false;
+        return ret;
+    }
 
     created = xTaskCreate(display_ui_task_run,
                           "display_ui_task",
