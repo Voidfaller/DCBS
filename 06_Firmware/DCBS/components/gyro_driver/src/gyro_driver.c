@@ -1,11 +1,9 @@
 #include "gyro_driver.h"
 #include "driver/i2c.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
-#define MPU6050_ADDR 0x68  // I2C address of the MPU6050 sensor! zie Datasheet pagina 9
+#define MPU6050_ADDR 0x68
 
-//de registers
 #define MPU6050_PWR_MGMT_1 0x6B
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_GYRO_XOUT_H 0x43
@@ -26,22 +24,15 @@ static esp_err_t i2c_master_init(void)
         .master.clk_speed = I2C_FREQ
     };
 
-    esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
-    if (err != ESP_OK)
-        return err;
-
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
     return i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
 }
 
 esp_err_t gyro_driver_init(void)
 {
-    esp_err_t err = i2c_master_init();
-    if (err != ESP_OK)
-        return err;
+    ESP_ERROR_CHECK(i2c_master_init());
 
-    uint8_t data[2];
-    data[0] = MPU6050_PWR_MGMT_1;  // sensor wakker maken zie Datasheet pagina 24
-    data[1] = 0x00;
+    uint8_t data[2] = {MPU6050_PWR_MGMT_1, 0x00};
 
     return i2c_master_write_to_device(
         I2C_MASTER_NUM,
@@ -65,8 +56,7 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
         6,
         pdMS_TO_TICKS(100));
 
-    if (err != ESP_OK)
-        return err;
+    if (err != ESP_OK) return err;
 
     int16_t gx = (buffer[0] << 8) | buffer[1];
     int16_t gy = (buffer[2] << 8) | buffer[3];
@@ -93,8 +83,7 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
         6,
         pdMS_TO_TICKS(100));
 
-    if (err != ESP_OK)
-        return err;
+    if (err != ESP_OK) return err;
 
     int16_t ax = (buffer[0] << 8) | buffer[1];
     int16_t ay = (buffer[2] << 8) | buffer[3];

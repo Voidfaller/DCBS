@@ -1,5 +1,6 @@
 
 // alleen voor het testen van de state estimator, niet in de uiteidelijke codebase!
+// print hoeken
 gyro_data_t gyro;
 accel_data_t accel;
 
