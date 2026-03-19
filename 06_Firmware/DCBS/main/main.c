@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "esp_log.h"
 
 #include "gyro_driver.h"
+#include "touch_driver.h"
 #include "state_estimator.h"
 
 static const char *TAG = "IMU_TEST";
@@ -69,24 +71,15 @@ void pid_task(void *pvParameters)
     }
 }
 
+
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Initializing IMU driver...");
-    if (gyro_driver_init() != ESP_OK)
-    {
-        ESP_LOGE(TAG, "MPU6050 init failed");
+  
+    if (touch_driver_init() != ESP_OK) {
+        ESP_LOGE(TAG, "touch_driver_init failed");
         return;
     }
 
-    // Queue aanmaken voor 10 items
-    imuQueue = xQueueCreate(10, sizeof(imu_data_t));
-    if (imuQueue == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to create IMU queue");
-        return;
-    }
-
-    // Taken aanmaken
-    xTaskCreate(imu_task, "imu_task", 4096, NULL, 5, NULL);
-    xTaskCreate(pid_task, "pid_task", 4096, NULL, 5, NULL);
+    xTaskCreate(touch_driver_task, "touch_task", 4096, NULL, 5, NULL);
+    ESP_LOGI(TAG, "Touch test started");
 }
