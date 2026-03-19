@@ -3,7 +3,11 @@
 #include "config_manager.h"
 #include "I2C_wrapper.h"
 
-void app_main(void)
+//Queue handle
+static QueueHandle_t imuQueue = NULL;
+
+// IMU task: leest sensor en stopt data in queue
+void imu_task(void *pvParameters)
 {
 
     // Initialize configuration manager and load config
