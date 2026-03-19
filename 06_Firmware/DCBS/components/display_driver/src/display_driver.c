@@ -1,5 +1,6 @@
 #include "display_driver.h"
 #include "I2C_wrapper.h"
+#include "config_manager.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <string.h>
@@ -36,9 +37,63 @@ typedef struct
     size_t setting_count;
     int frame;
     bool running;
+    bool config_bound;
+    app_config_t last_config;
 } display_ui_task_ctx_t;
 
 static display_ui_task_ctx_t s_ui_task_ctx;
+
+static void ui_apply_config_to_settings(const display_ui_task_ctx_t *ctx, const app_config_t *cfg)
+{
+    if (ctx == NULL || cfg == NULL || ctx->settings == NULL)
+    {
+        return;
+    }
+
+    if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
+    {
+        *ctx->settings[0].value = cfg->pid_setpoint;
+    }
+    if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
+    {
+        *ctx->settings[1].value = cfg->pid_kp;
+    }
+    if (ctx->setting_count > 2 && ctx->settings[2].value != NULL)
+    {
+        *ctx->settings[2].value = cfg->pid_ki;
+    }
+    if (ctx->setting_count > 3 && ctx->settings[3].value != NULL)
+    {
+        *ctx->settings[3].value = cfg->pid_kd;
+    }
+}
+
+static app_config_t ui_collect_config_from_settings(const display_ui_task_ctx_t *ctx, const app_config_t *base_cfg)
+{
+    app_config_t cfg = *base_cfg;
+
+    if (ctx->settings != NULL)
+    {
+        if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
+        {
+            cfg.pid_setpoint = *ctx->settings[0].value;
+        }
+        if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
+        {
+            cfg.pid_kp = *ctx->settings[1].value;
+        }
+        if (ctx->setting_count > 2 && ctx->settings[2].value != NULL)
+        {
+            cfg.pid_ki = *ctx->settings[2].value;
+        }
+        if (ctx->setting_count > 3 && ctx->settings[3].value != NULL)
+        {
+            cfg.pid_kd = *ctx->settings[3].value;
+        }
+    }
+
+    return cfg;
+}
 
 static int ui_triangle_wave(int frame, int period, int amplitude)
 {
@@ -759,8 +814,24 @@ static void display_ui_task_run(void *arg)
     ui_buttons_init();
     display_ui_init(&ctx->display, ctx->settings, ctx->setting_count);
 
+    if (ctx->config_bound)
+    {
+        config_manager_get_copy(&ctx->last_config);
+        ui_apply_config_to_settings(ctx, &ctx->last_config);
+    }
+
     while (ctx->running)
     {
+        if (ctx->config_bound)
+        {
+            const app_config_t *cfg_now = config_manager_get();
+            if (cfg_now != NULL && memcmp(cfg_now, &ctx->last_config, sizeof(app_config_t)) != 0)
+            {
+                ctx->last_config = *cfg_now;
+                ui_apply_config_to_settings(ctx, &ctx->last_config);
+            }
+        }
+
         ui_button_events_t events = ui_read_button_events();
         int32_t setpoint = (ctx->setting_count > 0 && ctx->settings[0].value != NULL) ? *ctx->settings[0].value : 0;
         int32_t kp = (ctx->setting_count > 1 && ctx->settings[1].value != NULL) ? *ctx->settings[1].value : 25;
@@ -788,6 +859,18 @@ static void display_ui_task_run(void *arg)
         display_ui_render(&ctx->display, &ui_data);
         display_flush(&ctx->display);
 
+        if (ctx->config_bound)
+        {
+            app_config_t pending_cfg = ui_collect_config_from_settings(ctx, &ctx->last_config);
+            if (memcmp(&pending_cfg, &ctx->last_config, sizeof(app_config_t)) != 0)
+            {
+                if (config_manager_update(&pending_cfg, true) == ESP_OK)
+                {
+                    ctx->last_config = pending_cfg;
+                }
+            }
+        }
+
         ctx->frame++;
         vTaskDelay(pdMS_TO_TICKS(UI_TASK_FRAME_MS));
     }
@@ -814,6 +897,13 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
     s_ui_task_ctx.setting_count = setting_count;
     s_ui_task_ctx.frame = 0;
     s_ui_task_ctx.running = true;
+    s_ui_task_ctx.config_bound = config_manager_is_initialized();
+
+    if (s_ui_task_ctx.config_bound)
+    {
+        config_manager_get_copy(&s_ui_task_ctx.last_config);
+        ui_apply_config_to_settings(&s_ui_task_ctx, &s_ui_task_ctx.last_config);
+    }
 
     ret = display_init(&s_ui_task_ctx.display, display_addr, width, height);
     if (ret != ESP_OK)
