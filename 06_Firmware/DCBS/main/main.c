@@ -1,43 +1,92 @@
 #include <stdio.h>
-#include "servo_driver.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
-#include "gyro_driver.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_log.h"
 
-static const char *TAG = "TEST";
+#include "gyro_driver.h"
+#include "state_estimator.h"
 
-void app_main(void)
+static const char *TAG = "IMU_TEST";
+
+//Queue handle
+static QueueHandle_t imuQueue = NULL;
+
+// IMU task: leest sensor en stopt data in queue
+void imu_task(void *pvParameters)
 {
+    state_estimator_init();
+
     gyro_data_t gyro;
     accel_data_t accel;
+    imu_data_t imu; // gebruik struct uit gyro_driver.h
 
-    if (gyro_driver_init() != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to init MPU6050");
-        return;
-    }
-
-    ESP_LOGI(TAG, "MPU6050 initialized");
+    float dt = 0.02f; // 50 Hz
 
     while (1)
     {
         if (gyro_driver_read_gyro(&gyro) == ESP_OK &&
             gyro_driver_read_accel(&accel) == ESP_OK)
         {
-            ESP_LOGI(TAG,
-                "GYRO: X=%.2f Y=%.2f Z=%.2f | ACCEL: X=%.2f Y=%.2f Z=%.2f",
-                gyro.gyro_x, gyro.gyro_y, gyro.gyro_z,
-                accel.accel_x, accel.accel_y, accel.accel_z);
+            imu.gyro = gyro;
+            imu.accel = accel;
+
+            // Stop in queue
+            if (xQueueSend(imuQueue, &imu, pdMS_TO_TICKS(10)) != pdPASS)
+            {
+                ESP_LOGW(TAG, "Queue full, IMU data lost");
+            }
         }
         else
         {
-            ESP_LOGE(TAG, "Read error");
+            ESP_LOGE(TAG, "Failed to read IMU");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz
     }
+}
+
+// PID / state estimation task: haalt data uit queue
+void pid_task(void *pvParameters)
+{
+    imu_data_t imu;   // gebruik struct uit gyro_driver.h
+    orientation_t orient;
+    float dt = 0.02f;
+
+    while (1)
+    {
+        if (xQueueReceive(imuQueue, &imu, portMAX_DELAY) == pdPASS)
+        {
+            // Update orientation
+            state_estimator_update(&imu.gyro, &imu.accel, dt);
+            orient = state_estimator_get_orientation();
+
+            // Log de resultaten
+            ESP_LOGI(TAG, "Pitch: %.2f°, Roll: %.2f°", orient.pitch, orient.roll);
+            //volgende stap:
+            //TODO: hier kan PID output voor servo komen
+        }
+    }
+}
+
+void app_main(void)
+{
+    ESP_LOGI(TAG, "Initializing IMU driver...");
+    if (gyro_driver_init() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "MPU6050 init failed");
+        return;
+    }
+
+    // Queue aanmaken voor 10 items
+    imuQueue = xQueueCreate(10, sizeof(imu_data_t));
+    if (imuQueue == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to create IMU queue");
+        return;
+    }
+
+    // Taken aanmaken
+    xTaskCreate(imu_task, "imu_task", 4096, NULL, 5, NULL);
+    xTaskCreate(pid_task, "pid_task", 4096, NULL, 5, NULL);
 }

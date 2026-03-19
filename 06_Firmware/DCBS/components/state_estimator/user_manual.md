@@ -14,9 +14,39 @@ This results in a stable and responsive estimation of the platform tilt.
 
 ---
 
-## Data Flow
+## Requirements:
 
-Gyro + Accel → State Estimator → Pitch/Roll → PID Controller
+- Calculates **pitch** and **roll** in degrees.
+- Uses a **complementary filter** for sensor fusion.
+- Provides **real-time updates** suitable for PID controllers.
+- Modular and lightweight for FreeRTOS integration.
+  
+---
+
+
+## Hardware Requirements
+
+- **IMU sensor**: MPU6050 
+- **Microcontroller**: ESP32 
+- Proper wiring for **SDA**, **SCL**, and power supply.
+
 
 ---
+
+## parameters
+
+|  Parameter |  Description |
+|-------------|-----------|
+| Gyro | Pointer to gyro_data_t (deg/s) |
+| Accel | Pointer to accel_data_t (g) |
+| dt | Time elapsed sice last update (S) |
+
+- dt should match our sensor samling interval
+- the complementary filter combines gyro and accelerometer for stable orientation
+
+
+---
+
+
+
 
