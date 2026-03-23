@@ -5,6 +5,8 @@
 #include "I2C_wrapper.h"
 #include "gyro_driver.h"
 #include "state_estimator.h"
+#include "pid_control.h"
+#include "servo_driver.h"
 #include "watchdog_service.h"
 
 #define DISABLE_TASK_WDT_TEMPORARY 1
@@ -56,6 +58,21 @@ void app_main(void)
         printf("Failed to start state estimator: %s\n", esp_err_to_name(err));
         return;
     }
+
+    err = pid_control_start();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start pid control: %s\n", esp_err_to_name(err));
+        return;
+    }
+
+    err = servo_stabilizer_start_pitch();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
+        return;
+    }
+
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(10));
