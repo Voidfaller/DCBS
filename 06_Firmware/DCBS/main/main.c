@@ -5,11 +5,26 @@
 #include "I2C_wrapper.h"
 #include "gyro_driver.h"
 #include "state_estimator.h"
+#include "watchdog_service.h"
+
+#define DISABLE_TASK_WDT_TEMPORARY 1
+
 void app_main(void)
 {
     esp_err_t err;
 
     config_manager_init();
+
+#if DISABLE_TASK_WDT_TEMPORARY
+    err = watchdog_service_disable_temporarily();
+    if (err != ESP_OK)
+    {
+        printf("Failed to disable Task WDT temporarily: %s\n", esp_err_to_name(err));
+        return;
+    }
+    printf("Task WDT temporarily disabled\n");
+#endif
+
     i2c_wrapper_config_t i2c_cfg = {
         .port = I2C_NUM_0,
         .scl_gpio = 22,
