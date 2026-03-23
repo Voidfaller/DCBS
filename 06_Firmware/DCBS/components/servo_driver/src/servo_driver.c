@@ -1,4 +1,5 @@
 #include "servo_driver.h"
+#include "pid_control.h"
 #include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -11,6 +12,52 @@
 #define SERVO_DEFAULT_CMD_QUEUE_LEN (8U)
 #define SERVO_DEFAULT_TASK_STACK_SIZE (2048U)
 #define SERVO_DEFAULT_TASK_PRIORITY (5U)
+
+#define PITCH_SERVO_GPIO 18
+#define PITCH_SERVO_NEUTRAL_DEG 0.0f
+#define PITCH_SERVO_GAIN 1.8f
+
+static TaskHandle_t s_pitch_servo_bridge_task = NULL;
+static servo_t s_pitch_servo = {
+    .gpio_pin = PITCH_SERVO_GPIO,
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .timer_num = LEDC_TIMER_1,
+    .channel = LEDC_CHANNEL_0,
+    .current_angle = PITCH_SERVO_NEUTRAL_DEG,
+    .target_angle = PITCH_SERVO_NEUTRAL_DEG,
+    .min_angle_deg = -30.0f,
+    .max_angle_deg = 30.0f,
+    .min_pulse_us = 500.0f,
+    .max_pulse_us = 2500.0f,
+    .task_period_ms = 10,
+    .task_step_deg = 6.0f,
+    .cmd_queue_len = 8,
+    .task_stack_size = 2048,
+    .task_priority = 6,
+};
+
+static void pitch_servo_stabilizer_task(void *arg)
+{
+    QueueHandle_t pid_queue = NULL;
+    (void)arg;
+
+    while (1)
+    {
+        if (pid_queue == NULL)
+        {
+            pid_queue = pid_control_get_queue_handle();
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
+
+        pid_output_t pid_out;
+        if (xQueueReceive(pid_queue, &pid_out, pdMS_TO_TICKS(100)) == pdPASS)
+        {
+            float target = PITCH_SERVO_NEUTRAL_DEG - (pid_out.pitch_output * PITCH_SERVO_GAIN);
+            (void)servo_set_target(&s_pitch_servo, target, true);
+        }
+    }
+}
 
 
 
@@ -250,5 +297,38 @@ esp_err_t servo_set_target(servo_t *servo, float angle, bool immediate)
         .immediate = immediate};
 
     return servo_send_command(servo, &cmd);
+}
+
+esp_err_t servo_stabilizer_start_pitch(void)
+{
+    BaseType_t task_ok;
+    esp_err_t err;
+
+    if (s_pitch_servo_bridge_task != NULL)
+    {
+        return ESP_OK;
+    }
+
+    servo_init(&s_pitch_servo);
+    err = servo_start_task(&s_pitch_servo);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    task_ok = xTaskCreate(
+        pitch_servo_stabilizer_task,
+        "pitch_servo_ctrl",
+        3072,
+        NULL,
+        8,
+        &s_pitch_servo_bridge_task);
+    if (task_ok != pdPASS)
+    {
+        s_pitch_servo_bridge_task = NULL;
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
