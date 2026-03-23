@@ -12,7 +12,27 @@ static bool i2c_wrapper_is_valid_config(const i2c_wrapper_config_t *config)
 	{
 		return false;
 	}
-	if (config->scl_gpio < 0 || config->sda_gpio < 0)
+	if (config->port < 0 || config->port >= I2C_NUM_MAX)
+	{
+		return false;
+	}
+	if (config->scl_gpio < 0 || config->scl_gpio >= GPIO_NUM_MAX)
+	{
+		return false;
+	}
+	if (config->sda_gpio < 0 || config->sda_gpio >= GPIO_NUM_MAX)
+	{
+		return false;
+	}
+	if (config->scl_gpio == config->sda_gpio)
+	{
+		return false;
+	}
+	if (config->default_dev_speed_hz == 0U)
+	{
+		return false;
+	}
+	if (config->clk_src != I2C_CLK_SRC_DEFAULT && config->clk_src != I2C_CLK_SRC_APB)
 	{
 		return false;
 	}
