@@ -57,6 +57,7 @@ typedef struct
 
 ---
 
+
 ### Accelerometer Data
 
 typedef struct
@@ -103,5 +104,3 @@ idf_component_register(
 )
 
 -this allows other components like state_estimator to include gyro_driver.h and acces IMU data in a thread safe manner.
-
-
