@@ -25,6 +25,10 @@ I2C settings:
 - Frequency: 100 kHz
 - Address: 0x68
 
+Notes:
+- Gyroscope raw values are scalrd by 131.0f (datasheet)
+- Accelerometer raw values are scaled by 16384.0f
+
 ---
 
 # Driver Architecture
@@ -39,41 +43,65 @@ The driver performs the following tasks:
 
 ---
 
-# API Reference
 
-## gyro_driver_init()
+## Data Structures
 
-Initializes the I2C bus and wakes up the MPU6050 sensor
+### Gyroscope Data
 
-## gyro_driver_read_gyro()
-
-Reads gyroscope data from the sensor.
-
-## gyro_driver_read_accel()
-
-Reads accelerometer data from the sensor.
+typedef struct
+{
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+} gyro_data_t;
 
 ---
 
-# Data Conversion
+### Accelerometer Data
 
-The driver converts raw sensor values using the following scale factors:
-
-| Sensor | Conversion |
-|------|------|
-| Gyroscope | raw / 131 → °/s |
-| Accelerometer | raw / 16384 → g |
-
-These values correspond to the default sensor configuration of the MPU6050.
-
----
+typedef struct
+{
+    float accel_x;
+    float accel_y;
+    float accel_z;
+} accel_data_t;
 
 
-# Related Modules
+### combine IMU data
 
-This driver is typically used together with:
+typedef struct
+{
+    gyro_data_t gyro;
+    accel_data_t accel;
+} imu_data_t;
 
-- state_estimator
-- pid_controller
-- servo_driver
+### API functions 
+esp_err_t gyro_driver_init(void);
+
+- initializes I2C interface and wakes up the MPU6050
+- Must be called before reading sensor data
+- returns ESP_OK on succes
+
+### Read Gyroscope and accelerometer data
+
+esp_err_t gyro_driver_read_gyro(gyro_data_t *data);
+esp_err_t gyro_driver_read_accel(accel_data_t *data);
+
+- reads raw gyroscope/accelerometer values from the sensor and converts to degrees per second
+- stores values in the provided Gyro_data_t struct and accel_data_t struct.
+- returns ESP_OK on succes 
+
+
+
+### intergration with cMake/esp_idf
+
+
+idf_component_register(
+    SRCS "src/gyro_driver.c"
+    INCLUDE_DIRS "include"
+    REQUIRES driver
+)
+
+-this allows other components like state_estimator to include gyro_driver.h and acces IMU data in a thread safe manner.
+
 
