@@ -11,8 +11,10 @@ typedef struct
 void state_estimator_init(void);
 
 void state_estimator_update(
-    const gyro_data_t *gyro,
-    const accel_data_t *accel,
+    imu_data_t *data,
     float dt);
 
 orientation_t state_estimator_get_orientation(void);
+
+void state_estimator_task(void *arg);
+esp_err_t state_estimator_start(void);

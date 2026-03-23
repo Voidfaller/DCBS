@@ -1,37 +1,48 @@
+#include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "config_manager.h"
 #include "I2C_wrapper.h"
-
-//Queue handle
-static QueueHandle_t imuQueue = NULL;
-
-// IMU task: leest sensor en stopt data in queue
-void imu_task(void *pvParameters)
+#include "gyro_driver.h"
+#include "state_estimator.h"
+void app_main(void)
 {
+    esp_err_t err;
 
-    // Initialize configuration manager and load config
-    const app_config_t *cfg;
-    ESP_ERROR_CHECK(config_manager_init());
-    cfg = config_manager_get();
-    (void)cfg;
-
-    // Initialize I2C wrapper
+    config_manager_init();
     i2c_wrapper_config_t i2c_cfg = {
         .port = I2C_NUM_0,
-        .scl_gpio = GPIO_NUM_22,
-        .sda_gpio = GPIO_NUM_21,
+        .scl_gpio = 22,
+        .sda_gpio = 21,
         .clk_src = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 0,
+        .glitch_ignore_cnt = 7,
         .enable_internal_pullup = true,
-        .default_dev_speed_hz = 400000,
+        .default_dev_speed_hz = 100000,
     };
-    ESP_ERROR_CHECK(i2c_wrapper_init(&i2c_cfg));
+
+    err = i2c_wrapper_init(&i2c_cfg);
+    if (err != ESP_OK)
+    {
+        printf("I2C wrapper init failed: %s\n", esp_err_to_name(err));
+        return;
+    }
+
+    err = gyro_driver_start();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start gyro driver: %s\n", esp_err_to_name(err));
+        return;
+    }
 
 
-
+    err = state_estimator_start();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start state estimator: %s\n", esp_err_to_name(err));
+        return;
+    }
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

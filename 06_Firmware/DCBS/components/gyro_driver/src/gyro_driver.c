@@ -1,6 +1,8 @@
 #include "gyro_driver.h"
-#include "driver/i2c.h"
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "I2C_wrapper.h"
 
 #define MPU6050_ADDR 0x68
 
@@ -8,55 +10,52 @@
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_GYRO_XOUT_H 0x43
 
-#define I2C_MASTER_NUM I2C_NUM_0
-#define I2C_SDA_PIN 21
-#define I2C_SCL_PIN 22
-#define I2C_FREQ 100000
+QueueHandle_t gyro_queue_handle = NULL;
 
-static esp_err_t i2c_master_init(void)
-{
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_SDA_PIN,
-        .scl_io_num = I2C_SCL_PIN,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_FREQ
-    };
-
-    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
-    return i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
-}
+static i2c_master_dev_handle_t s_mpu6050_dev = NULL;
+static TaskHandle_t s_gyro_task_handle = NULL;
 
 esp_err_t gyro_driver_init(void)
 {
-    ESP_ERROR_CHECK(i2c_master_init());
+    esp_err_t err;
 
-    uint8_t data[2] = {MPU6050_PWR_MGMT_1, 0x00};
+    if (!i2c_wrapper_is_initialized())
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    return i2c_master_write_to_device(
-        I2C_MASTER_NUM,
-        MPU6050_ADDR,
-        data,
-        2,
-        pdMS_TO_TICKS(100));
+    if (s_mpu6050_dev != NULL)
+    {
+        return ESP_OK;
+    }
+
+    err = i2c_wrapper_add_device(MPU6050_ADDR, 0, &s_mpu6050_dev);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    return i2c_wrapper_write_reg_u8(s_mpu6050_dev, MPU6050_PWR_MGMT_1, 0x00, 100);
 }
 
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
 {
-    uint8_t reg = MPU6050_GYRO_XOUT_H;
     uint8_t buffer[6];
+    esp_err_t err;
 
-    esp_err_t err = i2c_master_write_read_device(
-        I2C_MASTER_NUM,
-        MPU6050_ADDR,
-        &reg,
-        1,
-        buffer,
-        6,
-        pdMS_TO_TICKS(100));
+    if (data == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_mpu6050_dev == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    if (err != ESP_OK) return err;
+    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), 100);
+
+    if (err != ESP_OK)
+        return err;
 
     int16_t gx = (buffer[0] << 8) | buffer[1];
     int16_t gy = (buffer[2] << 8) | buffer[3];
@@ -71,19 +70,22 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
 
 esp_err_t gyro_driver_read_accel(accel_data_t *data)
 {
-    uint8_t reg = MPU6050_ACCEL_XOUT_H;
     uint8_t buffer[6];
+    esp_err_t err;
 
-    esp_err_t err = i2c_master_write_read_device(
-        I2C_MASTER_NUM,
-        MPU6050_ADDR,
-        &reg,
-        1,
-        buffer,
-        6,
-        pdMS_TO_TICKS(100));
+    if (data == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_mpu6050_dev == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    if (err != ESP_OK) return err;
+    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), 100);
+
+    if (err != ESP_OK)
+        return err;
 
     int16_t ax = (buffer[0] << 8) | buffer[1];
     int16_t ay = (buffer[2] << 8) | buffer[3];
@@ -94,4 +96,82 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
     data->accel_z = az / 16384.0f;
 
     return ESP_OK;
+}
+
+esp_err_t gyro_driver_start(void)
+{
+    BaseType_t task_ok;
+
+    if (s_gyro_task_handle != NULL)
+    {
+        return ESP_OK;
+    }
+
+    if (gyro_queue_handle == NULL)
+    {
+        gyro_queue_handle = xQueueCreate(10, sizeof(imu_data_t));
+        if (gyro_queue_handle == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    task_ok = xTaskCreate(gyro_driver_task, "gyro_task", 2048, NULL, 10, &s_gyro_task_handle);
+    if (task_ok != pdPASS)
+    {
+        s_gyro_task_handle = NULL;
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void gyro_driver_task(void *arg)
+{
+
+    //initialize the driver
+    esp_err_t err;
+    (void)arg;
+
+    err = gyro_driver_init();
+    if (err != ESP_OK)
+    {
+        printf("Gyro driver init failed: %s\n", esp_err_to_name(err));
+        vTaskDelete(NULL);
+        return;
+    }
+
+
+    if (gyro_queue_handle == NULL)
+    {
+        printf("Gyro queue is not initialized\n");
+        s_gyro_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    while (1)
+    {
+       imu_data_t data;
+        err = gyro_driver_read_gyro(&data.gyro);
+        if (err != ESP_OK)
+        {
+            printf("Failed to read gyro: %s\n", esp_err_to_name(err));
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
+        err = gyro_driver_read_accel(&data.accel);
+        if (err != ESP_OK)
+        {
+            printf("Failed to read accel: %s\n", esp_err_to_name(err));
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
+        if (gyro_queue_handle != NULL)
+        {
+            xQueueSend(gyro_queue_handle, &data, pdMS_TO_TICKS(10));
+        }
+    }
 }

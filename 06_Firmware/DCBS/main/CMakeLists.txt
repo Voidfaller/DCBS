@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c"
                     INCLUDE_DIRS "."
-                    REQUIRES freertos config_manager I2C_wrapper)
+                    REQUIRES freertos config_manager I2C_wrapper gyro_driver state_estimator)

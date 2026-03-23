@@ -2,7 +2,10 @@
 
 #include <stdint.h>
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
+// Data structures
 typedef struct
 {
     float gyro_x;
@@ -16,15 +19,18 @@ typedef struct
     float accel_y;
     float accel_z;
 } accel_data_t;
-
-// NIEUW: gecombineerde data (voor queue)
 typedef struct
 {
     gyro_data_t gyro;
     accel_data_t accel;
 } imu_data_t;
 
-esp_err_t gyro_driver_init(void);
+//globals
+extern QueueHandle_t gyro_queue_handle;
 
+//Functions
+esp_err_t gyro_driver_init(void);
+esp_err_t gyro_driver_start(void);
+void gyro_driver_task(void *arg);
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data);
 esp_err_t gyro_driver_read_accel(accel_data_t *data);
