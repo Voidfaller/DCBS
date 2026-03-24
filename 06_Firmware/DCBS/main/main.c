@@ -8,6 +8,7 @@
 #include "pid_control.h"
 #include "servo_driver.h"
 #include "watchdog_service.h"
+#include "display_driver.h"
 
 #define DISABLE_TASK_WDT_TEMPORARY 1
 
@@ -34,7 +35,7 @@ void app_main(void)
         .clk_src = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
         .enable_internal_pullup = true,
-        .default_dev_speed_hz = 100000,
+        .default_dev_speed_hz = 400000,
     };
 
     err = i2c_wrapper_init(&i2c_cfg);
@@ -51,13 +52,20 @@ void app_main(void)
         return;
     }
 
-
     err = state_estimator_start();
     if (err != ESP_OK)
     {
         printf("Failed to start state estimator: %s\n", esp_err_to_name(err));
         return;
     }
+
+    //config manager update test
+    app_config_t cfg;
+    config_manager_get_copy(&cfg);
+
+    cfg.pid_kp = 20;
+    config_manager_update(&cfg, true);
+
 
     err = pid_control_start();
     if (err != ESP_OK)
@@ -66,10 +74,17 @@ void app_main(void)
         return;
     }
 
-    err = servo_stabilizer_start_pitch();
+    // err = servo_stabilizer_start_pitch();
+    // if (err != ESP_OK)
+    // {
+    //     printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
+    //     return;
+    // }
+
+    err = display_driver_start();
     if (err != ESP_OK)
     {
-        printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
+        printf("Failed to start display driver: %s\n", esp_err_to_name(err));
         return;
     }
 

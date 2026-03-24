@@ -106,9 +106,9 @@ esp_err_t i2c_wrapper_add_device(uint8_t address_7bit,
 }
 
 esp_err_t i2c_wrapper_scan(uint8_t *addresses,
-					   size_t max_addresses,
-					   size_t *found_count,
-					   int timeout_ms)
+						   size_t max_addresses,
+						   size_t *found_count,
+						   int timeout_ms)
 {
 	size_t found = 0;
 
@@ -150,6 +150,19 @@ esp_err_t i2c_wrapper_txrx(i2c_master_dev_handle_t dev_handle,
 		return ESP_ERR_INVALID_ARG;
 	}
 	return i2c_master_transmit_receive(dev_handle, tx_data, tx_len, rx_data, rx_len, timeout_ms);
+}
+
+esp_err_t i2c_wrapper_tx(i2c_master_dev_handle_t dev_handle,
+						 const uint8_t *tx_data,
+						 size_t tx_len,
+						 int timeout_ms)
+{
+	if (dev_handle == NULL || tx_data == NULL || tx_len == 0U)
+	{
+		return ESP_ERR_INVALID_ARG;
+	}
+
+	return i2c_master_transmit(dev_handle, tx_data, tx_len, timeout_ms);
 }
 
 esp_err_t i2c_wrapper_write_reg(i2c_master_dev_handle_t dev_handle,
@@ -210,4 +223,22 @@ esp_err_t i2c_wrapper_read_reg_u8(i2c_master_dev_handle_t dev_handle,
 								  int timeout_ms)
 {
 	return i2c_wrapper_read_reg(dev_handle, reg, value, 1, timeout_ms);
+}
+
+int i2c_wrapper_probe(uint8_t address_7bit, int timeout_ms)
+{
+	esp_err_t ret = i2c_master_probe(s_bus_handle, address_7bit, timeout_ms);
+	if (ret == ESP_OK)
+	{
+		printf("Device found at I2C address 0x%02X\n", address_7bit);
+	}
+	else if (ret == ESP_ERR_TIMEOUT)
+	{
+		printf("No response from I2C address 0x%02X (timeout)\n", address_7bit);
+	}
+	else
+	{
+		printf("Error probing I2C address 0x%02X: 0x%x\n", address_7bit, ret);
+	}
+	return ret;
 }

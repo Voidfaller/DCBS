@@ -39,6 +39,10 @@ esp_err_t i2c_wrapper_txrx(i2c_master_dev_handle_t dev_handle,
 						   uint8_t *rx_data,
 						   size_t rx_len,
 						   int timeout_ms);
+esp_err_t i2c_wrapper_tx(i2c_master_dev_handle_t dev_handle,
+						 const uint8_t *tx_data,
+						 size_t tx_len,
+						 int timeout_ms);
 
 esp_err_t i2c_wrapper_write_reg(i2c_master_dev_handle_t dev_handle,
 								uint8_t reg,

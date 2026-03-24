@@ -34,3 +34,4 @@ esp_err_t gyro_driver_start(void);
 void gyro_driver_task(void *arg);
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data);
 esp_err_t gyro_driver_read_accel(accel_data_t *data);
+QueueHandle_t gyro_driver_get_monitor_queue_handle(void);
