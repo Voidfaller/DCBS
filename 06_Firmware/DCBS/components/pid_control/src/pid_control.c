@@ -13,11 +13,13 @@
 #define PID_INPUT_TASK_PRIORITY 8U
 #define PID_INPUT_QUEUE_LEN 1U
 #define PID_OUTPUT_QUEUE_LEN 1U
+#define PID_MONITOR_QUEUE_LEN 1U
 #define PID_DT_SECONDS 0.01f
 #define PID_GAIN_SCALE 0.1f
 
 QueueHandle_t pid_input_queue_handle = NULL;
 QueueHandle_t pid_output_queue_handle = NULL;
+static QueueHandle_t s_pid_monitor_queue_handle = NULL;
 
 static TaskHandle_t s_pid_task_handle = NULL;
 static TaskHandle_t s_pid_input_task_handle = NULL;
@@ -56,8 +58,8 @@ static void pid_control_apply_settings_from_config(void)
         (float)cfg->pid_kp * PID_GAIN_SCALE,
         (float)cfg->pid_ki * PID_GAIN_SCALE,
         (float)cfg->pid_kd * PID_GAIN_SCALE,
-        -30.0f,
-        30.0f);
+        -90.0f,
+        90.0f);
 }
 
 static void pid_input_task(void *arg)
@@ -151,6 +153,8 @@ float pid_update(pid_controller_t *pid,
 
     pid->prev_measurement = measured_angle_deg;
 
+    // printf("PID update: setpoint=%.2f, measured=%.2f, error=%.2f, p=%.2f, i=%.2f, d=%.2f, output=%.2f\n",
+    //        setpoint_deg, measured_angle_deg, error, p_term, pid->ki * pid->integral, d_term, output);
     return output;
 }
 
@@ -162,6 +166,11 @@ QueueHandle_t pid_control_get_queue_handle(void)
 QueueHandle_t pid_control_get_input_queue_handle(void)
 {
     return pid_input_queue_handle;
+}
+
+QueueHandle_t pid_control_get_monitor_queue_handle(void)
+{
+    return s_pid_monitor_queue_handle;
 }
 
 esp_err_t pid_control_reload_settings(void)
@@ -197,6 +206,15 @@ esp_err_t pid_control_start(void)
     {
         pid_output_queue_handle = xQueueCreate(PID_OUTPUT_QUEUE_LEN, sizeof(pid_output_t));
         if (pid_output_queue_handle == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_pid_monitor_queue_handle == NULL)
+    {
+        s_pid_monitor_queue_handle = xQueueCreate(PID_MONITOR_QUEUE_LEN, sizeof(pid_output_t));
+        if (s_pid_monitor_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
@@ -262,15 +280,19 @@ void pid_control_task(void *arg)
             {
                 xQueueOverwrite(pid_output_queue_handle, &out);
             }
+            if (s_pid_monitor_queue_handle != NULL)
+            {
+                xQueueOverwrite(s_pid_monitor_queue_handle, &out);
+            }
 
             log_div++;
             if (log_div >= 20U)
             {
-                printf("PID out pitch=%.2f roll=%.2f | meas pitch=%.2f roll=%.2f\n",
-                       out.pitch_output,
-                       out.roll_output,
-                       out.pitch_measurement,
-                       out.roll_measurement);
+                // printf("PID out pitch=%.2f roll=%.2f | meas pitch=%.2f roll=%.2f\n",
+                //        out.pitch_output,
+                //        out.roll_output,
+                //        out.pitch_measurement,
+                //        out.roll_measurement);
                 log_div = 0U;
             }
         }

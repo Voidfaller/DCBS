@@ -1,7 +1,10 @@
 #include "display_driver.h"
 #include "I2C_wrapper.h"
 #include "config_manager.h"
+#include "gyro_driver.h"
+#include "pid_control.h"
 #include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <freertos/task.h>
 #include <string.h>
 #include <stdio.h>
@@ -16,7 +19,7 @@
 #define UI_HISTORY_LEN 64
 #define UI_TASK_STACK_SIZE 4096
 #define UI_TASK_PRIORITY 5
-#define UI_TASK_FRAME_MS 50
+#define UI_TASK_FRAME_MS 80
 #define UI_BTN_UP_GPIO 25
 #define UI_BTN_DOWN_GPIO 26
 #define UI_BTN_SELECT_GPIO 27
@@ -39,6 +42,10 @@ typedef struct
     bool running;
     bool config_bound;
     app_config_t last_config;
+    pid_output_t last_pid_output;
+    bool has_pid_output;
+    imu_data_t last_imu_data;
+    bool has_imu_data;
 } display_ui_task_ctx_t;
 
 static display_ui_task_ctx_t s_ui_task_ctx;
@@ -93,13 +100,6 @@ static app_config_t ui_collect_config_from_settings(const display_ui_task_ctx_t 
     }
 
     return cfg;
-}
-
-static int ui_triangle_wave(int frame, int period, int amplitude)
-{
-    int phase = frame % (2 * period);
-    int ramp = (phase < period) ? phase : (2 * period - phase);
-    return ((ramp * 2 * amplitude) / period) - amplitude;
 }
 
 static void ui_buttons_init(void)
@@ -160,7 +160,7 @@ static int32_t clamp_i32(int32_t v, int32_t lo, int32_t hi)
 static void ssd1306_send_cmd(display_t *display, uint8_t cmd)
 {
     uint8_t buf[2] = {0x00, cmd}; // Co=0, D/C#=0 (command)
-    esp_err_t ret = i2c_master_transmit(display->dev_handle, buf, 2, I2C_XFER_TIMEOUT_MS);
+    esp_err_t ret = i2c_wrapper_tx(display->dev_handle, buf, 2, I2C_XFER_TIMEOUT_MS);
     if (ret != ESP_OK)
     {
         printf("ssd1306_send_cmd failed: 0x%x (cmd=0x%02X)\n", ret, cmd);
@@ -169,15 +169,15 @@ static void ssd1306_send_cmd(display_t *display, uint8_t cmd)
 
 static void ssd1306_send_data(display_t *display, const uint8_t *data, size_t len)
 {
-    // Send in chunks of 32 bytes to avoid I2C timeout
+    // Larger chunks reduce transaction overhead and improve frame rate.
     size_t offset = 0;
     while (offset < len)
     {
-        size_t chunk = (len - offset > 32) ? 32 : (len - offset);
-        uint8_t buf[33];
+        size_t chunk = (len - offset > 64) ? 64 : (len - offset);
+        uint8_t buf[65];
         buf[0] = 0x40; // Co=0, D/C#=1 (data)
         memcpy(&buf[1], data + offset, chunk);
-        esp_err_t ret = i2c_master_transmit(display->dev_handle, buf, chunk + 1, I2C_XFER_TIMEOUT_MS);
+        esp_err_t ret = i2c_wrapper_tx(display->dev_handle, buf, chunk + 1, I2C_XFER_TIMEOUT_MS);
         if (ret != ESP_OK)
         {
             printf("ssd1306_send_data failed: 0x%x\n", ret);
@@ -323,7 +323,7 @@ static void ui_draw_screen_header(display_t *display, const char *title, int scr
     display_drawRect(display, 0, 0, 126, 62, 1);
     display_drawLine(display, -63, -22, 63, -22, 1);
     ui_draw_text(display, -44, -27, title);
-    snprintf(buf, sizeof(buf), "SCR %d OF 4", screen_index);
+    snprintf(buf, sizeof(buf), "SCR %d OF 5", screen_index);
     ui_draw_text(display, 24, -27, buf);
 }
 
@@ -335,82 +335,130 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
     int graph_y1 = 10;
     int graph_w = graph_x1 - graph_x0;
     int graph_mid = (graph_y0 + graph_y1) / 2;
-    int32_t setpoint_clamped = clamp_i32(pid_setpoint, -100, 100);
-    int32_t measured_clamped = clamp_i32(pid_measured, -100, 100);
-    int32_t output_clamped = clamp_i32(pid_output, -100, 100);
+    int32_t angle_range_deg = 30;
+    int32_t output_range = 30;
+    int32_t setpoint_clamped = clamp_i32(pid_setpoint, -angle_range_deg, angle_range_deg);
+    int32_t measured_clamped = clamp_i32(pid_measured, -angle_range_deg, angle_range_deg);
+    int32_t output_clamped = clamp_i32(pid_output, -output_range, output_range);
 
     ui_draw_screen_header(display, "PID", 1);
 
     display_drawRect(display, (graph_x0 + graph_x1) / 2, (graph_y0 + graph_y1) / 2, graph_w, graph_y1 - graph_y0, 1);
 
-    display->pid_history[display->pid_history_head] = (int16_t)output_clamped;
+    display->pid_history[display->pid_history_head] = (int16_t)measured_clamped;
     display->pid_history_head = (uint8_t)((display->pid_history_head + 1U) % UI_HISTORY_LEN);
 
-    int setpoint_y = graph_mid - (int)((setpoint_clamped * 10) / 100);
-    int measured_y = graph_mid - (int)((measured_clamped * 10) / 100);
+    int setpoint_y = graph_mid - (int)((setpoint_clamped * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg));
+    int measured_y = graph_mid - (int)((measured_clamped * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg));
+
+    for (int x = graph_x0 + 1; x < graph_x1; x += 4)
+    {
+        display_drawLine(display, x, graph_mid, x + 1, graph_mid, 1);
+    }
+
     display_drawLine(display, graph_x0 + 1, setpoint_y, graph_x1 - 1, setpoint_y, 1);
-    display_drawLine(display, graph_x1 + 6, measured_y - 1, graph_x1 + 12, measured_y - 1, 1);
-    display_drawLine(display, graph_x1 + 6, measured_y, graph_x1 + 12, measured_y, 1);
-    display_drawLine(display, graph_x1 + 6, measured_y + 1, graph_x1 + 12, measured_y + 1, 1);
+    display_drawLine(display, graph_x1 + 6, setpoint_y, graph_x1 + 11, setpoint_y, 1);
+    display_drawLine(display, graph_x1 + 6, measured_y - 1, graph_x1 + 11, measured_y - 1, 1);
+    display_drawLine(display, graph_x1 + 6, measured_y + 1, graph_x1 + 11, measured_y + 1, 1);
 
     for (int i = 1; i < 46; i++)
     {
         int idx0 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i - 1) % UI_HISTORY_LEN);
         int idx1 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i) % UI_HISTORY_LEN);
-        int y0 = graph_mid - (display->pid_history[idx0] * 10) / 100;
-        int y1 = graph_mid - (display->pid_history[idx1] * 10) / 100;
+        int y0 = graph_mid - (display->pid_history[idx0] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
+        int y1 = graph_mid - (display->pid_history[idx1] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
         int x0 = graph_x0 + 1 + (i - 1) * 2;
         int x1 = graph_x0 + 1 + i * 2;
         display_drawLine(display, x0, y0, x1, y1, 1);
     }
 
-    display_drawRect(display, 0, 22, 120, 14, 1);
-    ui_draw_text(display, -50, 22, "OUT");
-    ui_draw_int(display, -23, 22, output_clamped);
+    display_drawLine(display, graph_x1 - 2, measured_y - 2, graph_x1 - 2, measured_y + 2, 1);
 
-    int bar_half = (int)((output_clamped * 45) / 100);
-    if (bar_half >= 0)
+    display_drawRect(display, 0, 22, 120, 14, 1);
+    ui_draw_text(display, -54, 18, "SP");
+    ui_draw_int(display, -38, 18, setpoint_clamped);
+    ui_draw_text(display, -12, 18, "ME");
+    ui_draw_int(display, 6, 18, measured_clamped);
+    ui_draw_text(display, 38, 18, "OUT");
+    ui_draw_int(display, 56, 18, output_clamped);
+
+    int bar_px = (output_clamped * 42) / output_range;
+    display_drawLine(display, 0, 26, 0, 28, 1);
+    if (bar_px > 0)
     {
-        display_fillRect(display, -45 + bar_half, 22, bar_half * 2, 7, 1);
+        for (int y = 26; y <= 28; y++)
+        {
+            display_drawLine(display, 1, y, bar_px, y, 1);
+        }
     }
-    else
+    else if (bar_px < 0)
     {
-        int width = -bar_half * 2;
-        display_fillRect(display, -45 - (width / 2), 22, width, 7, 1);
+        for (int y = 26; y <= 28; y++)
+        {
+            display_drawLine(display, bar_px, y, -1, y, 1);
+        }
     }
 }
 
 static void ui_draw_gyro_screen(display_t *display, int32_t gyro_x, int32_t gyro_y, int32_t gyro_z)
 {
-    int cx = 0;
-    int cy = 8;
-    int length = 16;
-    int32_t z_clamped = clamp_i32(gyro_z, -500, 500);
-    float angle_deg = ((float)z_clamped / 500.0f) * 45.0f;
-    float radians = angle_deg * 0.0174532925f;
-    int dx = (int)(cosf(radians) * (float)length);
-    int dy = (int)(sinf(radians) * (float)length);
-
     ui_draw_screen_header(display, "GYRO", 2);
 
-    ui_draw_text(display, -48, -12, "X");
+    ui_draw_text(display, -52, -12, "X");
     ui_draw_int(display, -34, -12, gyro_x);
-    ui_draw_text(display, -2, -12, "Y");
-    ui_draw_int(display, 12, -12, gyro_y);
-    ui_draw_text(display, 42, -12, "Z");
-    ui_draw_int(display, 54, -12, gyro_z);
+    ui_draw_bar(display, 26, -12, 62, 8, gyro_x, -500, 500);
 
-    display_drawRect(display, 0, 8, 86, 24, 1);
+    ui_draw_text(display, -52, 0, "Y");
+    ui_draw_int(display, -34, 0, gyro_y);
+    ui_draw_bar(display, 26, 0, 62, 8, gyro_y, -500, 500);
+
+    ui_draw_text(display, -52, 12, "Z");
+    ui_draw_int(display, -34, 12, gyro_z);
+    ui_draw_bar(display, 26, 12, 62, 8, gyro_z, -500, 500);
+
+    display_drawRect(display, 0, 24, 120, 10, 1);
+    ui_draw_text(display, -44, 24, "UNIT DPS");
+    ui_draw_text(display, 30, 24, "RNG 500");
+}
+
+static void ui_draw_estimator_screen(display_t *display, int32_t pitch_deg, int32_t roll_deg)
+{
+    int32_t pitch = clamp_i32(pitch_deg, -90, 90);
+    int32_t roll = clamp_i32(roll_deg, -90, 90);
+    int32_t pitch_vis = clamp_i32(pitch, -45, 45);
+    int32_t roll_vis = clamp_i32(roll, -60, 60);
+    int cx = -18;
+    int cy = 0;
+    int half_len = 22;
+    int pitch_offset = -(pitch_vis * 9) / 45;
+    float radians = (float)roll_vis * 0.0174532925f;
+    int dx = (int)(cosf(radians) * (float)half_len);
+    int dy = (int)(sinf(radians) * (float)half_len);
+
+    ui_draw_screen_header(display, "EST", 3);
+
+    display_drawRect(display, cx, cy, 76, 34, 1);
     display_drawLine(display, cx - 30, cy, cx + 30, cy, 1);
-    display_drawLine(display, cx, cy - 10, cx, cy + 10, 1);
-    display_drawLine(display, cx - dx, cy + dy, cx + dx, cy - dy, 1);
+    display_drawLine(display, cx, cy - 12, cx, cy + 12, 1);
 
-    ui_draw_text(display, -56, 22, "X");
-    ui_draw_bar(display, -32, 22, 30, 8, gyro_x, -500, 500);
-    ui_draw_text(display, -4, 22, "Y");
-    ui_draw_bar(display, 20, 22, 30, 8, gyro_y, -500, 500);
-    ui_draw_text(display, 48, 22, "Z");
-    ui_draw_bar(display, 56, 22, 14, 8, gyro_z, -500, 500);
+    display_drawLine(
+        display,
+        cx - dx,
+        cy + pitch_offset + dy,
+        cx + dx,
+        cy + pitch_offset - dy,
+        1);
+
+    display_drawLine(display, cx - 2, cy + pitch_offset, cx + 2, cy + pitch_offset, 1);
+
+    ui_draw_text(display, 40, -10, "P");
+    ui_draw_int(display, 52, -10, pitch);
+    ui_draw_text(display, 40, 2, "R");
+    ui_draw_int(display, 52, 2, roll);
+
+    display_drawRect(display, 0, 24, 120, 10, 1);
+    ui_draw_text(display, -44, 24, "TARGET 0 DEG");
+    ui_draw_text(display, 34, 24, "VIS +-45");
 }
 
 static void ui_draw_servo_screen(display_t *display, int32_t pwm_us)
@@ -423,7 +471,7 @@ static void ui_draw_servo_screen(display_t *display, int32_t pwm_us)
     int prev_x = x0;
     int prev_y = y_low;
 
-    ui_draw_screen_header(display, "SERVO", 3);
+    ui_draw_screen_header(display, "SERVO", 4);
     ui_draw_text(display, -42, -12, "PWM US");
     ui_draw_int(display, 10, -12, pwm);
 
@@ -447,7 +495,7 @@ static void ui_draw_servo_screen(display_t *display, int32_t pwm_us)
 
 static void ui_draw_stats_screen(display_t *display, uint32_t uptime_s, uint32_t free_heap_bytes, uint32_t frame_hz)
 {
-    ui_draw_screen_header(display, "STATS", 4);
+    ui_draw_screen_header(display, "STATS", 5);
 
     ui_draw_text(display, -46, -10, "UPTIME S");
     ui_draw_int(display, 20, -10, (int32_t)uptime_s);
@@ -534,12 +582,13 @@ esp_err_t display_init(display_t *display, uint8_t addr, int width, int height)
     {
         return ESP_ERR_INVALID_ARG;
     }
+    printf("Initializing display at I2C address 0x%02X...\n", addr);
 
     display->addr = addr;
     display->width = width;
     display->height = height;
 
-    ret = i2c_wrapper_add_device(addr, 100000, &display->dev_handle);
+    ret = i2c_wrapper_add_device(addr, 400000, &display->dev_handle);
     if (ret != ESP_OK)
     {
         return ret;
@@ -548,9 +597,8 @@ esp_err_t display_init(display_t *display, uint8_t addr, int width, int height)
     // SSD1306 initialization sequence
     vTaskDelay(pdMS_TO_TICKS(100));  // wait for display power-up
     ssd1306_send_cmd(display, 0xAE); // display off
-    ssd1306_send_cmd(display, 0xA3); // set MUX ratio
-    ssd1306_send_cmd(display, 0x00); // 0 static area
-    ssd1306_send_cmd(display, 0x40); // 64 scroll area
+    ssd1306_send_cmd(display, 0xA8); // set multiplex ratio
+    ssd1306_send_cmd(display, 0x3F); // 1/64 duty for 128x64 panels
     ssd1306_send_cmd(display, 0xD3); // set display offset
     ssd1306_send_cmd(display, 0x00); // no offset
     ssd1306_send_cmd(display, 0x40); // set display start line
@@ -677,29 +725,28 @@ void display_ui_init(display_t *display, const display_ui_setting_t *settings, s
 
 void display_ui_handle_input(display_t *display, bool up_pressed, bool down_pressed, bool select_pressed, bool back_pressed)
 {
+    const int first_screen = (int)DISPLAY_UI_SCREEN_PID;
+    const int last_screen = (int)DISPLAY_UI_SCREEN_STATS;
+
     if (display->ui_screen != DISPLAY_UI_SCREEN_MENU)
     {
         if (up_pressed)
         {
-            if (display->ui_screen == DISPLAY_UI_SCREEN_PID)
+            int next = (int)display->ui_screen - 1;
+            if (next < first_screen)
             {
-                display->ui_screen = DISPLAY_UI_SCREEN_STATS;
+                next = last_screen;
             }
-            else
-            {
-                display->ui_screen = (display_ui_screen_t)((int)display->ui_screen - 1);
-            }
+            display->ui_screen = (display_ui_screen_t)next;
         }
         if (down_pressed)
         {
-            if (display->ui_screen == DISPLAY_UI_SCREEN_STATS)
+            int next = (int)display->ui_screen + 1;
+            if (next > last_screen)
             {
-                display->ui_screen = DISPLAY_UI_SCREEN_PID;
+                next = first_screen;
             }
-            else
-            {
-                display->ui_screen = (display_ui_screen_t)((int)display->ui_screen + 1);
-            }
+            display->ui_screen = (display_ui_screen_t)next;
         }
     }
 
@@ -793,6 +840,10 @@ void display_ui_render(display_t *display, const display_ui_data_t *ui_data)
     {
         ui_draw_gyro_screen(display, ui_data->gyro_x_dps, ui_data->gyro_y_dps, ui_data->gyro_z_dps);
     }
+    else if (display->ui_screen == DISPLAY_UI_SCREEN_ESTIMATOR)
+    {
+        ui_draw_estimator_screen(display, ui_data->est_pitch_deg, ui_data->est_roll_deg);
+    }
     else if (display->ui_screen == DISPLAY_UI_SCREEN_SERVO)
     {
         ui_draw_servo_screen(display, ui_data->servo_pwm_us);
@@ -810,6 +861,8 @@ void display_ui_render(display_t *display, const display_ui_data_t *ui_data)
 static void display_ui_task_run(void *arg)
 {
     display_ui_task_ctx_t *ctx = (display_ui_task_ctx_t *)arg;
+    QueueHandle_t pid_monitor_queue = NULL;
+    QueueHandle_t imu_queue = NULL;
 
     ui_buttons_init();
     display_ui_init(&ctx->display, ctx->settings, ctx->setting_count);
@@ -832,15 +885,45 @@ static void display_ui_task_run(void *arg)
             }
         }
 
+        if (pid_monitor_queue == NULL)
+        {
+            pid_monitor_queue = pid_control_get_monitor_queue_handle();
+        }
+
+        if (pid_monitor_queue != NULL)
+        {
+            pid_output_t latest;
+            if (xQueuePeek(pid_monitor_queue, &latest, 0) == pdPASS)
+            {
+                ctx->last_pid_output = latest;
+                ctx->has_pid_output = true;
+            }
+        }
+
+        if (imu_queue == NULL)
+        {
+            imu_queue = gyro_driver_get_monitor_queue_handle();
+        }
+
+        if (imu_queue != NULL)
+        {
+            imu_data_t imu_latest;
+            if (xQueuePeek(imu_queue, &imu_latest, 0) == pdPASS)
+            {
+                ctx->last_imu_data = imu_latest;
+                ctx->has_imu_data = true;
+            }
+        }
+
         ui_button_events_t events = ui_read_button_events();
-        int32_t setpoint = (ctx->setting_count > 0 && ctx->settings[0].value != NULL) ? *ctx->settings[0].value : 0;
-        int32_t kp = (ctx->setting_count > 1 && ctx->settings[1].value != NULL) ? *ctx->settings[1].value : 25;
-        int32_t measured = ui_triangle_wave(ctx->frame, 120, 70);
-        int32_t error = setpoint - measured;
-        int32_t output = (kp * error) / 100;
-        int32_t gyro_x = ui_triangle_wave(ctx->frame + 20, 80, 420);
-        int32_t gyro_y = ui_triangle_wave(ctx->frame + 50, 110, 360);
-        int32_t gyro_z = ui_triangle_wave(ctx->frame + 90, 140, 500);
+        int32_t setpoint = (ctx->config_bound) ? ctx->last_config.pid_setpoint : 0;
+        int32_t measured = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
+        int32_t output = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_output) : 0;
+        int32_t est_pitch = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
+        int32_t est_roll = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.roll_measurement) : 0;
+        int32_t gyro_x = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_x) : 0;
+        int32_t gyro_y = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_y) : 0;
+        int32_t gyro_z = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_z) : 0;
         int32_t servo_pwm_us = 1500 + (output * 5);
         display_ui_data_t ui_data = {
             .pid_setpoint = setpoint,
@@ -849,6 +932,8 @@ static void display_ui_task_run(void *arg)
             .gyro_x_dps = gyro_x,
             .gyro_y_dps = gyro_y,
             .gyro_z_dps = gyro_z,
+            .est_pitch_deg = est_pitch,
+            .est_roll_deg = est_roll,
             .servo_pwm_us = servo_pwm_us,
             .uptime_s = (uint32_t)(esp_timer_get_time() / 1000000ULL),
             .free_heap_bytes = heap_caps_get_free_size(MALLOC_CAP_8BIT),
@@ -886,6 +971,8 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
 {
     esp_err_t ret;
     BaseType_t created;
+
+    printf("Starting display UI task...\n");
 
     if (s_ui_task_ctx.running)
     {
@@ -926,4 +1013,22 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
     }
 
     return ESP_OK;
+}
+
+esp_err_t display_driver_start(void)
+{
+    esp_err_t ret;
+    printf("Starting display driver...\n");
+    ret = display_ui_start_task(0x3C, 128, 64, NULL, 0);
+    if (ret == ESP_OK)
+    {
+        return ESP_OK;
+    }
+
+    if (ret == ESP_ERR_INVALID_STATE)
+    {
+        return ret;
+    }
+
+    return display_ui_start_task(0x3D, 128, 64, NULL, 0);
 }

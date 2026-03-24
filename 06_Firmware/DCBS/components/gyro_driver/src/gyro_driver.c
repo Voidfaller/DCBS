@@ -9,11 +9,19 @@
 #define MPU6050_PWR_MGMT_1 0x6B
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_GYRO_XOUT_H 0x43
+#define GYRO_SAMPLE_PERIOD_MS 10
+#define GYRO_I2C_TIMEOUT_MS 20
 
 QueueHandle_t gyro_queue_handle = NULL;
+static QueueHandle_t s_gyro_monitor_queue_handle = NULL;
 
 static i2c_master_dev_handle_t s_mpu6050_dev = NULL;
 static TaskHandle_t s_gyro_task_handle = NULL;
+
+QueueHandle_t gyro_driver_get_monitor_queue_handle(void)
+{
+    return s_gyro_monitor_queue_handle;
+}
 
 esp_err_t gyro_driver_init(void)
 {
@@ -35,7 +43,7 @@ esp_err_t gyro_driver_init(void)
         return err;
     }
 
-    return i2c_wrapper_write_reg_u8(s_mpu6050_dev, MPU6050_PWR_MGMT_1, 0x00, 100);
+    return i2c_wrapper_write_reg_u8(s_mpu6050_dev, MPU6050_PWR_MGMT_1, 0x00, GYRO_I2C_TIMEOUT_MS);
 }
 
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
@@ -52,7 +60,7 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
         return ESP_ERR_INVALID_STATE;
     }
 
-    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), 100);
+    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
 
     if (err != ESP_OK)
         return err;
@@ -82,7 +90,7 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
         return ESP_ERR_INVALID_STATE;
     }
 
-    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), 100);
+    err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
 
     if (err != ESP_OK)
         return err;
@@ -109,8 +117,17 @@ esp_err_t gyro_driver_start(void)
 
     if (gyro_queue_handle == NULL)
     {
-        gyro_queue_handle = xQueueCreate(10, sizeof(imu_data_t));
+        gyro_queue_handle = xQueueCreate(1, sizeof(imu_data_t));
         if (gyro_queue_handle == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_gyro_monitor_queue_handle == NULL)
+    {
+        s_gyro_monitor_queue_handle = xQueueCreate(1, sizeof(imu_data_t));
+        if (s_gyro_monitor_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
@@ -129,7 +146,7 @@ esp_err_t gyro_driver_start(void)
 void gyro_driver_task(void *arg)
 {
 
-    //initialize the driver
+    // initialize the driver
     esp_err_t err;
     (void)arg;
 
@@ -141,7 +158,6 @@ void gyro_driver_task(void *arg)
         return;
     }
 
-
     if (gyro_queue_handle == NULL)
     {
         printf("Gyro queue is not initialized\n");
@@ -152,7 +168,7 @@ void gyro_driver_task(void *arg)
 
     while (1)
     {
-       imu_data_t data;
+        imu_data_t data;
         err = gyro_driver_read_gyro(&data.gyro);
         if (err != ESP_OK)
         {
@@ -171,7 +187,17 @@ void gyro_driver_task(void *arg)
 
         if (gyro_queue_handle != NULL)
         {
-            xQueueSend(gyro_queue_handle, &data, pdMS_TO_TICKS(10));
+            xQueueOverwrite(gyro_queue_handle, &data);
+            // printf("Gyro data sent to queue: gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
+            //        data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
+            //        data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
         }
+
+        if (s_gyro_monitor_queue_handle != NULL)
+        {
+            xQueueOverwrite(s_gyro_monitor_queue_handle, &data);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(GYRO_SAMPLE_PERIOD_MS));
     }
 }

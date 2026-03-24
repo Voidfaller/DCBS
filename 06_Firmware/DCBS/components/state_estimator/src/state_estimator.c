@@ -108,6 +108,7 @@ void state_estimator_task(void *arg)
             {
                 orientation_t current_orientation = state_estimator_get_orientation();
                 xQueueOverwrite(state_estimator_queue_handle, &current_orientation);
+                // printf("Orientation updated: pitch=%.2f, roll=%.2f\n", current_orientation.pitch, current_orientation.roll);
             }
         
             //debug print

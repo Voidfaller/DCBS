@@ -50,5 +50,6 @@ esp_err_t pid_control_reload_settings(void);
 void pid_control_task(void *arg);
 QueueHandle_t pid_control_get_queue_handle(void);
 QueueHandle_t pid_control_get_input_queue_handle(void);
+QueueHandle_t pid_control_get_monitor_queue_handle(void);
 
 #endif /* PID_CONTROL_H */

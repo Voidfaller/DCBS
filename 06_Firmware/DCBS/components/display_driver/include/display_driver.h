@@ -10,6 +10,7 @@ typedef enum
 {
     DISPLAY_UI_SCREEN_PID = 0,
     DISPLAY_UI_SCREEN_GYRO,
+    DISPLAY_UI_SCREEN_ESTIMATOR,
     DISPLAY_UI_SCREEN_SERVO,
     DISPLAY_UI_SCREEN_STATS,
     DISPLAY_UI_SCREEN_MENU,
@@ -23,6 +24,8 @@ typedef struct
     int32_t gyro_x_dps;
     int32_t gyro_y_dps;
     int32_t gyro_z_dps;
+    int32_t est_pitch_deg;
+    int32_t est_roll_deg;
     int32_t servo_pwm_us;
     uint32_t uptime_s;
     uint32_t free_heap_bytes;
@@ -76,3 +79,5 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
                                 int height,
                                 const display_ui_setting_t *settings,
                                 size_t setting_count);
+
+esp_err_t display_driver_start(void);
