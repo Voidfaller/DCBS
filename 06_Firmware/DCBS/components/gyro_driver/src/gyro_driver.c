@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "I2C_wrapper.h"
+#include "esp_timer.h"
 
 #define MPU6050_ADDR 0x68
 
@@ -10,7 +11,8 @@
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_GYRO_XOUT_H 0x43
 #define GYRO_SAMPLE_PERIOD_MS 10
-#define GYRO_I2C_TIMEOUT_MS 20
+#define GYRO_I2C_TIMEOUT_MS 80
+#define GYRO_PERF_LOG_INTERVAL_US (2000000ULL)
 
 QueueHandle_t gyro_queue_handle = NULL;
 static QueueHandle_t s_gyro_monitor_queue_handle = NULL;
@@ -61,6 +63,11 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
     }
 
     err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
+    if (err == ESP_ERR_TIMEOUT)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
+    }
 
     if (err != ESP_OK)
         return err;
@@ -91,6 +98,11 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
     }
 
     err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
+    if (err == ESP_ERR_TIMEOUT)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
+    }
 
     if (err != ESP_OK)
         return err;
@@ -166,23 +178,49 @@ void gyro_driver_task(void *arg)
         return;
     }
 
+    uint64_t perf_last_log_us = esp_timer_get_time();
+    uint64_t perf_max_loop_us = 0;
+    uint64_t perf_max_read_us = 0;
+    uint32_t perf_samples = 0;
+    uint32_t perf_timeouts = 0;
+
     while (1)
     {
+        uint64_t loop_start_us = esp_timer_get_time();
+        uint64_t read_start_us;
+        uint64_t read_end_us;
+
         imu_data_t data;
+        read_start_us = esp_timer_get_time();
         err = gyro_driver_read_gyro(&data.gyro);
         if (err != ESP_OK)
         {
+            if (err == ESP_ERR_TIMEOUT)
+            {
+                perf_timeouts++;
+            }
             printf("Failed to read gyro: %s\n", esp_err_to_name(err));
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
         err = gyro_driver_read_accel(&data.accel);
+        read_end_us = esp_timer_get_time();
         if (err != ESP_OK)
         {
+            if (err == ESP_ERR_TIMEOUT)
+            {
+                perf_timeouts++;
+            }
             printf("Failed to read accel: %s\n", esp_err_to_name(err));
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
+        }
+
+        uint64_t read_us = read_end_us - read_start_us;
+        if (read_us > perf_max_read_us)
+        {
+            perf_max_read_us = read_us;
         }
 
         if (gyro_queue_handle != NULL)
@@ -196,6 +234,28 @@ void gyro_driver_task(void *arg)
         if (s_gyro_monitor_queue_handle != NULL)
         {
             xQueueOverwrite(s_gyro_monitor_queue_handle, &data);
+        }
+
+        uint64_t loop_us = esp_timer_get_time() - loop_start_us;
+        if (loop_us > perf_max_loop_us)
+        {
+            perf_max_loop_us = loop_us;
+        }
+
+        perf_samples++;
+        uint64_t now_us = esp_timer_get_time();
+        if ((now_us - perf_last_log_us) >= GYRO_PERF_LOG_INTERVAL_US)
+        {
+            printf("GYRO PERF samples=%lu max_read_us=%llu max_loop_us=%llu timeouts=%lu\n",
+                   (unsigned long)perf_samples,
+                   (unsigned long long)perf_max_read_us,
+                   (unsigned long long)perf_max_loop_us,
+                   (unsigned long)perf_timeouts);
+            perf_last_log_us = now_us;
+            perf_max_read_us = 0;
+            perf_max_loop_us = 0;
+            perf_samples = 0;
+            perf_timeouts = 0;
         }
 
         vTaskDelay(pdMS_TO_TICKS(GYRO_SAMPLE_PERIOD_MS));

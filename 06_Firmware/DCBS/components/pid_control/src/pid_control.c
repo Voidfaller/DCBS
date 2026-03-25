@@ -20,7 +20,6 @@
 QueueHandle_t pid_input_queue_handle = NULL;
 QueueHandle_t pid_output_queue_handle = NULL;
 static QueueHandle_t s_pid_monitor_queue_handle = NULL;
-
 static TaskHandle_t s_pid_task_handle = NULL;
 static TaskHandle_t s_pid_input_task_handle = NULL;
 static pid_controller_t s_pitch_pid;
@@ -97,33 +96,33 @@ void pid_init(pid_controller_t *pid,
               float ki,
               float kd,
               float out_min,
-              float out_max)  
+              float out_max)
 {
-  if (pid == NULL)
-      return;
+    if (pid == NULL)
+        return;
 
-  pid->kp = kp;
-  pid->ki = ki;
-  pid->kd = kd;
-  pid->integral = 0.0f;
-  pid->prev_measurement = 0.0f;
-  pid->out_min = out_min;
-  pid->out_max = out_max;
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    pid->integral = 0.0f;
+    pid->prev_measurement = 0.0f;
+    pid->out_min = out_min;
+    pid->out_max = out_max;
 }
 
-void pid_reset(pid_controller_t *pid) 
+void pid_reset(pid_controller_t *pid)
 {
-  if (pid == NULL)
-      return;
-    
-  pid->integral = 0.0f;
-  pid->prev_measurement = 0.0f;
+    if (pid == NULL)
+        return;
+
+    pid->integral = 0.0f;
+    pid->prev_measurement = 0.0f;
 }
 
 float pid_update(pid_controller_t *pid,
-                float setpoint_deg,
-                float measured_angle_deg,
-                float dt)
+                 float setpoint_deg,
+                 float measured_angle_deg,
+                 float dt)
 {
     if (pid == NULL || dt <= 0.0f)
         return 0.0f;

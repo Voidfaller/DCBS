@@ -74,12 +74,12 @@ void app_main(void)
         return;
     }
 
-    // err = servo_stabilizer_start_pitch();
-    // if (err != ESP_OK)
-    // {
-    //     printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
-    //     return;
-    // }
+    err = servo_stabilizer_start_pitch();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
+        return;
+    }
 
     err = display_driver_start();
     if (err != ESP_OK)
