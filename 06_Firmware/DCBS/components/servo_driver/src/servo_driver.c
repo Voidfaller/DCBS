@@ -4,6 +4,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "esp_timer.h"
+#include <stdio.h>
 
 #define SERVO_DEFAULT_MIN_ANGLE_DEG (-90.0f)
 #define SERVO_DEFAULT_MAX_ANGLE_DEG (90.0f)
@@ -12,6 +14,7 @@
 #define SERVO_DEFAULT_CMD_QUEUE_LEN (8U)
 #define SERVO_DEFAULT_TASK_STACK_SIZE (2048U)
 #define SERVO_DEFAULT_TASK_PRIORITY (5U)
+#define SERVO_PERF_LOG_INTERVAL_US (2000000ULL)
 
 #define PITCH_SERVO_GPIO 18
 #define PITCH_SERVO_NEUTRAL_DEG 0.0f
@@ -29,9 +32,9 @@ static servo_t s_pitch_servo = {
     .max_angle_deg = 30.0f,
     .min_pulse_us = 500.0f,
     .max_pulse_us = 2500.0f,
-    .task_period_ms = 10,
+    .task_period_ms = 20,
     .task_step_deg = 6.0f,
-    .cmd_queue_len = 8,
+    .cmd_queue_len = 1,
     .task_stack_size = 2048,
     .task_priority = 6,
 };
@@ -39,10 +42,16 @@ static servo_t s_pitch_servo = {
 static void pitch_servo_stabilizer_task(void *arg)
 {
     QueueHandle_t pid_queue = NULL;
+    QueueHandle_t servo_cmd_queue = NULL;
+    uint64_t perf_last_log_us = esp_timer_get_time();
+    uint64_t perf_max_loop_us = 0;
+    uint32_t perf_samples = 0;
     (void)arg;
 
     while (1)
     {
+        uint64_t loop_start_us = esp_timer_get_time();
+
         if (pid_queue == NULL)
         {
             pid_queue = pid_control_get_queue_handle();
@@ -54,7 +63,37 @@ static void pitch_servo_stabilizer_task(void *arg)
         if (xQueueReceive(pid_queue, &pid_out, pdMS_TO_TICKS(100)) == pdPASS)
         {
             float target = PITCH_SERVO_NEUTRAL_DEG - (pid_out.pitch_output * PITCH_SERVO_GAIN);
-            (void)servo_set_target(&s_pitch_servo, target, true);
+            if (servo_cmd_queue == NULL)
+            {
+                servo_cmd_queue = (QueueHandle_t)s_pitch_servo.cmd_queue_handle;
+            }
+
+            if (servo_cmd_queue != NULL)
+            {
+                servo_cmd_t cmd = {
+                    .target_angle = target,
+                    .immediate = true,
+                };
+                xQueueOverwrite(servo_cmd_queue, &cmd);
+            }
+        }
+
+        uint64_t loop_us = esp_timer_get_time() - loop_start_us;
+        if (loop_us > perf_max_loop_us)
+        {
+            perf_max_loop_us = loop_us;
+        }
+
+        perf_samples++;
+        uint64_t now_us = esp_timer_get_time();
+        if ((now_us - perf_last_log_us) >= SERVO_PERF_LOG_INTERVAL_US)
+        {
+            printf("SERVO BRIDGE PERF samples=%lu max_loop_us=%llu\n",
+                   (unsigned long)perf_samples,
+                   (unsigned long long)perf_max_loop_us);
+            perf_last_log_us = now_us;
+            perf_max_loop_us = 0;
+            perf_samples = 0;
         }
     }
 }
@@ -132,9 +171,14 @@ static void servo_task(void *arg)
     servo_cmd_t cmd;
     float current_angle = clamp_angle(servo, servo->current_angle);
     float target_angle = clamp_angle(servo, servo->target_angle);
+    uint64_t perf_last_log_us = esp_timer_get_time();
+    uint64_t perf_max_loop_us = 0;
+    uint32_t perf_samples = 0;
 
     while (1)
     {
+        uint64_t loop_start_us = esp_timer_get_time();
+
         while (xQueueReceive(cmd_queue, &cmd, 0) == pdPASS)
         {
             target_angle = clamp_angle(servo, cmd.target_angle);
@@ -160,6 +204,25 @@ static void servo_task(void *arg)
         servo->current_angle = current_angle;
         servo->target_angle = target_angle;
         servo_rotate(servo, current_angle);
+
+        uint64_t loop_us = esp_timer_get_time() - loop_start_us;
+        if (loop_us > perf_max_loop_us)
+        {
+            perf_max_loop_us = loop_us;
+        }
+
+        perf_samples++;
+        uint64_t now_us = esp_timer_get_time();
+        if ((now_us - perf_last_log_us) >= SERVO_PERF_LOG_INTERVAL_US)
+        {
+            printf("SERVO TASK PERF samples=%lu max_loop_us=%llu\n",
+                   (unsigned long)perf_samples,
+                   (unsigned long long)perf_max_loop_us);
+            perf_last_log_us = now_us;
+            perf_max_loop_us = 0;
+            perf_samples = 0;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(servo->task_period_ms));
     }
 }
