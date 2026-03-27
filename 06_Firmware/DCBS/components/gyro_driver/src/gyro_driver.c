@@ -4,7 +4,7 @@
 #include "freertos/task.h"
 #include "I2C_wrapper.h"
 #include "esp_timer.h"
-
+#include "watchdog_service.h"
 #define MPU6050_ADDR 0x68
 
 #define MPU6050_PWR_MGMT_1 0x6B
@@ -12,6 +12,8 @@
 #define MPU6050_GYRO_XOUT_H 0x43
 #define GYRO_SAMPLE_PERIOD_MS 10
 #define GYRO_I2C_TIMEOUT_MS 80
+#define GYRO_TASK_STACK_SIZE 4096U
+#define GYRO_ERROR_LOG_INTERVAL_MS 1000U
 #define GYRO_PERF_LOG_INTERVAL_US (2000000ULL)
 
 QueueHandle_t gyro_queue_handle = NULL;
@@ -20,6 +22,7 @@ static QueueHandle_t s_gyro_monitor_queue_handle = NULL;
 static i2c_master_dev_handle_t s_mpu6050_dev = NULL;
 static TaskHandle_t s_gyro_task_handle = NULL;
 
+static watchdog_handle_t s_watchdog_handle = WATCHDOG_INVALID_HANDLE;
 QueueHandle_t gyro_driver_get_monitor_queue_handle(void)
 {
     return s_gyro_monitor_queue_handle;
@@ -44,6 +47,7 @@ esp_err_t gyro_driver_init(void)
     {
         return err;
     }
+
 
     return i2c_wrapper_write_reg_u8(s_mpu6050_dev, MPU6050_PWR_MGMT_1, 0x00, GYRO_I2C_TIMEOUT_MS);
 }
@@ -145,13 +149,14 @@ esp_err_t gyro_driver_start(void)
         }
     }
 
-    task_ok = xTaskCreate(gyro_driver_task, "gyro_task", 2048, NULL, 10, &s_gyro_task_handle);
+    task_ok = xTaskCreate(gyro_driver_task, "gyro_task", GYRO_TASK_STACK_SIZE, NULL, 10, &s_gyro_task_handle);
     if (task_ok != pdPASS)
     {
         s_gyro_task_handle = NULL;
         return ESP_FAIL;
     }
 
+    s_watchdog_handle = watchdog_register("Gyro Driver", 5);
     return ESP_OK;
 }
 
@@ -183,6 +188,7 @@ void gyro_driver_task(void *arg)
     uint64_t perf_max_read_us = 0;
     uint32_t perf_samples = 0;
     uint32_t perf_timeouts = 0;
+    TickType_t last_error_log_tick = 0;
 
     while (1)
     {
@@ -199,7 +205,21 @@ void gyro_driver_task(void *arg)
             {
                 perf_timeouts++;
             }
-            printf("Failed to read gyro: %s\n", esp_err_to_name(err));
+
+            TickType_t now_tick = xTaskGetTickCount();
+            if ((now_tick - last_error_log_tick) >= pdMS_TO_TICKS(GYRO_ERROR_LOG_INTERVAL_MS))
+            {
+                printf("Failed to read gyro: %s\n", esp_err_to_name(err));
+                last_error_log_tick = now_tick;
+            }
+
+            if (err == ESP_ERR_INVALID_STATE)
+            {
+                // Try to recover if the device handle was lost or became invalid.
+                s_mpu6050_dev = NULL;
+                (void)gyro_driver_init();
+            }
+
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
@@ -212,7 +232,20 @@ void gyro_driver_task(void *arg)
             {
                 perf_timeouts++;
             }
-            printf("Failed to read accel: %s\n", esp_err_to_name(err));
+
+            TickType_t now_tick = xTaskGetTickCount();
+            if ((now_tick - last_error_log_tick) >= pdMS_TO_TICKS(GYRO_ERROR_LOG_INTERVAL_MS))
+            {
+                printf("Failed to read accel: %s\n", esp_err_to_name(err));
+                last_error_log_tick = now_tick;
+            }
+
+            if (err == ESP_ERR_INVALID_STATE)
+            {
+                s_mpu6050_dev = NULL;
+                (void)gyro_driver_init();
+            }
+
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
@@ -257,7 +290,7 @@ void gyro_driver_task(void *arg)
             perf_samples = 0;
             perf_timeouts = 0;
         }
-
+        watchdog_feed(s_watchdog_handle);
         vTaskDelay(pdMS_TO_TICKS(GYRO_SAMPLE_PERIOD_MS));
     }
 }

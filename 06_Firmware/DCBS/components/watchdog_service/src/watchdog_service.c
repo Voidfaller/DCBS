@@ -15,6 +15,7 @@ typedef struct
 
 static watchdog_entry_t tasks[MAX_WATCHDOG_TASKS];
 static int task_count = 0;
+static bool s_watchdog_task_started = false;
 
 watchdog_handle_t watchdog_register(const char *name, uint32_t timeout_sec)
 {
@@ -33,6 +34,11 @@ watchdog_handle_t watchdog_register(const char *name, uint32_t timeout_sec)
 
 void watchdog_feed(watchdog_handle_t handle)
 {
+    if (handle < 0 || handle >= task_count || !tasks[handle].active)
+    {
+        return;
+    }
+
     tasks[handle].last_feed = xTaskGetTickCount();
 }
 
@@ -61,12 +67,26 @@ void watchdog_task(void *arg)
 
 void watchdog_init(uint32_t hw_timeout_sec)
 {
+    esp_err_t ret;
+
     esp_task_wdt_config_t config = {
         .timeout_ms = hw_timeout_sec * 1000,
         .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
         .trigger_panic = true,
     };
 
-    esp_task_wdt_init(&config);
-    xTaskCreate(watchdog_task, "watchdog_task", 2048, NULL, 10, NULL);
+    ret = esp_task_wdt_init(&config);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE)
+    {
+        printf("watchdog_init failed: %s\n", esp_err_to_name(ret));
+        return;
+    }
+
+    if (!s_watchdog_task_started)
+    {
+        if (xTaskCreate(watchdog_task, "watchdog_task", 2048, NULL, 10, NULL) == pdPASS)
+        {
+            s_watchdog_task_started = true;
+        }
+    }
 }

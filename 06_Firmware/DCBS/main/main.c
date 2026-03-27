@@ -14,20 +14,15 @@
 
 void app_main(void)
 {
+
+    // Initialize the watchdog with a timeout of 5 seconds
+    watchdog_init(5);
     esp_err_t err;
 
+    // Initialize the config manager first to ensure settings are available for other components
     config_manager_init();
 
-#if DISABLE_TASK_WDT_TEMPORARY
-    err = watchdog_service_disable_temporarily();
-    if (err != ESP_OK)
-    {
-        printf("Failed to disable Task WDT temporarily: %s\n", esp_err_to_name(err));
-        return;
-    }
-    printf("Task WDT temporarily disabled\n");
-#endif
-
+    // Initialize the I2C wrapper before any components that depend on I2C
     i2c_wrapper_config_t i2c_cfg = {
         .port = I2C_NUM_0,
         .scl_gpio = 22,
@@ -59,18 +54,11 @@ void app_main(void)
         return;
     }
 
-    //config manager update test
-    app_config_t cfg;
-    config_manager_get_copy(&cfg);
-
-    cfg.pid_kp = 20;
-    config_manager_update(&cfg, true);
-
-
     err = pid_control_start();
     if (err != ESP_OK)
     {
         printf("Failed to start pid control: %s\n", esp_err_to_name(err));
+        watchdog_register("PID Control", 5);
         return;
     }
 
@@ -78,8 +66,12 @@ void app_main(void)
     if (err != ESP_OK)
     {
         printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
+        watchdog_register("Pitch Servo", 5);
         return;
     }
+
+    // Set true to bypass PID and drive servo directly from state_estimator pitch.
+    servo_set_pitch_pid_bypass(false);
 
     err = display_driver_start();
     if (err != ESP_OK)

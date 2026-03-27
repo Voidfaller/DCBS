@@ -3,6 +3,7 @@
 #include "config_manager.h"
 #include "gyro_driver.h"
 #include "pid_control.h"
+#include "servo_driver.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
@@ -14,6 +15,7 @@
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
+#include "watchdog_service.h"
 
 #define I2C_XFER_TIMEOUT_MS 100
 #define UI_HISTORY_LEN 64
@@ -49,6 +51,18 @@ typedef struct
 } display_ui_task_ctx_t;
 
 static display_ui_task_ctx_t s_ui_task_ctx;
+static int32_t s_ui_pid_setpoint = 0;
+static int32_t s_ui_pid_kp = 25;
+static int32_t s_ui_pid_ki = 2;
+static int32_t s_ui_pid_kd = 8;
+static int32_t s_ui_servo_mode = 0;
+static const display_ui_setting_t s_pid_ui_settings[] = {
+    DISPLAY_UI_SETTING("SETPOINT", &s_ui_pid_setpoint, -30, 30, 1),
+    DISPLAY_UI_SETTING("KP", &s_ui_pid_kp, 0, 100, 1),
+    DISPLAY_UI_SETTING("KI", &s_ui_pid_ki, 0, 100, 1),
+    DISPLAY_UI_SETTING("KD", &s_ui_pid_kd, 0, 100, 1),
+    DISPLAY_UI_SETTING("Bypass PID", &s_ui_servo_mode, 0, 1, 1),
+};
 
 static void ui_apply_config_to_settings(const display_ui_task_ctx_t *ctx, const app_config_t *cfg)
 {
@@ -941,6 +955,13 @@ static void display_ui_task_run(void *arg)
         };
 
         display_ui_handle_input(&ctx->display, events.up, events.down, events.select, events.back);
+
+        bool desired_bypass = (s_ui_servo_mode != 0);
+        if (servo_get_pitch_pid_bypass() != desired_bypass)
+        {
+            servo_set_pitch_pid_bypass(desired_bypass);
+        }
+
         display_ui_render(&ctx->display, &ui_data);
         display_flush(&ctx->display);
 
@@ -952,12 +973,17 @@ static void display_ui_task_run(void *arg)
                 if (config_manager_update(&pending_cfg, true) == ESP_OK)
                 {
                     ctx->last_config = pending_cfg;
+                    if (pid_control_reload_settings() != ESP_OK)
+                    {
+                        printf("PID settings reload failed\n");
+                    }
                 }
             }
         }
 
         ctx->frame++;
         vTaskDelay(pdMS_TO_TICKS(UI_TASK_FRAME_MS));
+        
     }
 
     vTaskDelete(NULL);
@@ -985,6 +1011,7 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
     s_ui_task_ctx.frame = 0;
     s_ui_task_ctx.running = true;
     s_ui_task_ctx.config_bound = config_manager_is_initialized();
+    s_ui_servo_mode = servo_get_pitch_pid_bypass() ? 1 : 0;
 
     if (s_ui_task_ctx.config_bound)
     {
@@ -1019,7 +1046,12 @@ esp_err_t display_driver_start(void)
 {
     esp_err_t ret;
     printf("Starting display driver...\n");
-    ret = display_ui_start_task(0x3C, 128, 64, NULL, 0);
+    ret = display_ui_start_task(
+        0x3C,
+        128,
+        64,
+        s_pid_ui_settings,
+        sizeof(s_pid_ui_settings) / sizeof(s_pid_ui_settings[0]));
     if (ret == ESP_OK)
     {
         return ESP_OK;
@@ -1030,5 +1062,10 @@ esp_err_t display_driver_start(void)
         return ret;
     }
 
-    return display_ui_start_task(0x3D, 128, 64, NULL, 0);
+    return display_ui_start_task(
+        0x3D,
+        128,
+        64,
+        s_pid_ui_settings,
+        sizeof(s_pid_ui_settings) / sizeof(s_pid_ui_settings[0]));
 }
