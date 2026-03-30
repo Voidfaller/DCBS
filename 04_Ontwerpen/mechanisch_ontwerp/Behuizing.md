@@ -18,6 +18,13 @@ Beweging:
 Servo 1 : kantelt links/rechts (X-axis)
 Servo 2 : kantelt voor/achter (Y-axis)
 
+## Belangrijke Basismaten:
+
+gebaseerd op de requirements+onderdelen:
+
+**Beker** : Diameter: 80mm ; Platform: 100 mm 
+**Servo** : Body: ~40*20 *40 mm; Torque: voldoende voor 1kg.
+
 ## 2. Afmetingen
 
 ### 2.1 BasePlat:
@@ -70,3 +77,55 @@ Outer Frame: draagt inner frame, draait x-as
 inner frame: Draagt Cup Holder, tilt sensor 
 
 
+-------------------------
+
+Nieuwe versie:
+
+1. Base Plate
+afmetingen: 200* 200 mm
+dikte: 6mm
+
+voeg toe: 
+servo gaten:
+- 2 servo positites links/rechts
+- hartafstand: 120mm
+
+gat maten:
+- M3 gaten : 3,2mm
+
+
+Elektronica ruimte:
+- uistparing: 80*60 mm
+- diepte: 3mm 
+voor ESP32 en MPU6050
+
+2. Servo Mount: dit kan je ook online vinden
+
+maak een L-beugel:
+base: 60*40mm 
+Hoogte: 50mm
+dikte:4mm
+
+3. Outer Frame:
+vierkant ring
+buitenmaat: 140*140 mm
+binnenmaat: 110*110 mm
+dikte 6 mm
+
+-servo connectie: aan beide zijkanten: gat voor as: 6mm dit is waar de servo horn komt
+
+
+4. Inner frame:
+buitenmaat: 110*110 mm
+Binnenmaat: 90*90 mm
+dikte: 6mm
+zijkanen: 6mm gaten voor rotatie ; 90 gedraaid t.o.v outerframe
+
+
+5. platform (cup holder)
+
+diamter: 100 mm
+dikte: 5mm
+
+rand: hoogte: 10mm ; dikte: 3mm; voorkomt fat beker schuift 
+sensor mount: klein vlak: 20*20mm voor mpu6050
