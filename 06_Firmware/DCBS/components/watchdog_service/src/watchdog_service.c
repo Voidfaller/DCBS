@@ -54,7 +54,7 @@ void watchdog_task(void *arg)
                 esp_restart();
             }
         }
-        esp_task_wdt_reset();           
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 }
