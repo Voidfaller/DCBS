@@ -1,7 +1,12 @@
+#include <stdbool.h>
+#include <stdio.h>
+
 #include "watchdog_service.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_task_wdt.h"
+#include "esp_err.h"
+#include "esp_system.h"
 
 #define MAX_WATCHDOG_TASKS 10
 

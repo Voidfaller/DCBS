@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "src/servo_driver.c"
     INCLUDE_DIRS "include"
-    REQUIRES driver freertos pid_control
-    )
+    REQUIRES freertos pid_control esp_driver_ledc
+)

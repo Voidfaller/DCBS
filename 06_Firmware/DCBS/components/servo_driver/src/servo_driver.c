@@ -30,7 +30,10 @@
 #define SERVO_MIN_EFFECTIVE_SPAN_US 1200.0f
 
 static TaskHandle_t s_pitch_servo_bridge_task = NULL;
+static TaskHandle_t s_pitch_servo_task_handle = NULL;
+static QueueHandle_t s_pitch_servo_cmd_queue = NULL;
 static volatile bool s_pitch_servo_pid_bypass = false;
+
 static servo_t s_pitch_servo = {
     .gpio_pin = PITCH_SERVO_GPIO,
     .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -60,7 +63,7 @@ static void pitch_servo_stabilizer_task(void *arg)
     {
         if (servo_cmd_queue == NULL)
         {
-            servo_cmd_queue = (QueueHandle_t)s_pitch_servo.cmd_queue_handle;
+            servo_cmd_queue = s_pitch_servo_cmd_queue;
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
@@ -197,7 +200,7 @@ static float clamp_angle(const servo_t *servo, float angle)
 static void servo_task(void *arg)
 {
     servo_t *servo = (servo_t *)arg;
-    QueueHandle_t cmd_queue = (QueueHandle_t)servo->cmd_queue_handle;
+    QueueHandle_t cmd_queue = s_pitch_servo_cmd_queue;
     servo_cmd_t cmd;
     float current_angle = clamp_angle(servo, servo->current_angle);
     float target_angle = clamp_angle(servo, servo->target_angle);
@@ -321,41 +324,44 @@ esp_err_t servo_start_task(servo_t *servo)
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (servo->task_handle != NULL)
+    if (servo == &s_pitch_servo && s_pitch_servo_task_handle != NULL)
     {
         return ESP_OK;
     }
 
     servo_apply_defaults(servo);
 
-    QueueHandle_t cmd_queue = xQueueCreate(servo->cmd_queue_len, sizeof(servo_cmd_t));
-    if (cmd_queue == NULL)
+    if (servo == &s_pitch_servo)
     {
-        return ESP_ERR_NO_MEM;
+        if (s_pitch_servo_cmd_queue == NULL)
+        {
+            s_pitch_servo_cmd_queue = xQueueCreate(servo->cmd_queue_len, sizeof(servo_cmd_t));
+            if (s_pitch_servo_cmd_queue == NULL)
+            {
+                return ESP_ERR_NO_MEM;
+            }
+        }
+
+        BaseType_t task_created = xTaskCreate(
+            servo_task,
+            "servo_task",
+            servo->task_stack_size,
+            servo,
+            servo->task_priority,
+            &s_pitch_servo_task_handle);
+
+        if (task_created != pdPASS)
+        {
+            vQueueDelete(s_pitch_servo_cmd_queue);
+            s_pitch_servo_cmd_queue = NULL;
+            s_pitch_servo_task_handle = NULL;
+            return ESP_FAIL;
+        }
+
+        return ESP_OK;
     }
 
-    servo->cmd_queue_handle = (void *)cmd_queue;
-    TaskHandle_t task_handle = NULL;
-
-    BaseType_t task_created = xTaskCreate(
-        servo_task,
-        "servo_task",
-        servo->task_stack_size,
-        servo,
-        servo->task_priority,
-        &task_handle);
-
-    if (task_created != pdPASS)
-    {
-        vQueueDelete(cmd_queue);
-        servo->cmd_queue_handle = NULL;
-        servo->task_handle = NULL;
-        return ESP_FAIL;
-    }
-
-    servo->task_handle = (void *)task_handle;
-
-    return ESP_OK;
+    return ESP_ERR_NOT_SUPPORTED;
 }
 
 esp_err_t servo_send_command(servo_t *servo, const servo_cmd_t *cmd)
@@ -369,18 +375,23 @@ esp_err_t servo_send_command(servo_t *servo, const servo_cmd_t *cmd)
     {
         return ESP_ERR_INVALID_ARG;
     }
-    QueueHandle_t cmd_queue = (QueueHandle_t)servo->cmd_queue_handle;
-    if (cmd_queue == NULL)
+
+    if (servo == &s_pitch_servo)
     {
-        return ESP_ERR_INVALID_STATE;
+        if (s_pitch_servo_cmd_queue == NULL)
+        {
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        if (xQueueSend(s_pitch_servo_cmd_queue, cmd, pdMS_TO_TICKS(20)) != pdPASS)
+        {
+            return ESP_ERR_TIMEOUT;
+        }
+
+        return ESP_OK;
     }
 
-    if (xQueueSend(cmd_queue, cmd, pdMS_TO_TICKS(20)) != pdPASS)
-    {
-        return ESP_ERR_TIMEOUT;
-    }
-
-    return ESP_OK;
+    return ESP_ERR_NOT_SUPPORTED;
 }
 
 esp_err_t servo_set_target(servo_t *servo, float angle, bool immediate)

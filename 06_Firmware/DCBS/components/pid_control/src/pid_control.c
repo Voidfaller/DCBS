@@ -17,8 +17,8 @@
 #define PID_DT_SECONDS 0.01f
 #define PID_GAIN_SCALE 0.1f
 
-QueueHandle_t pid_input_queue_handle = NULL;
-QueueHandle_t pid_output_queue_handle = NULL;
+static QueueHandle_t s_pid_input_queue_handle = NULL;
+static QueueHandle_t s_pid_output_queue_handle = NULL;
 static QueueHandle_t s_pid_monitor_queue_handle = NULL;
 static TaskHandle_t s_pid_task_handle = NULL;
 static TaskHandle_t s_pid_input_task_handle = NULL;
@@ -26,6 +26,9 @@ static pid_controller_t s_pitch_pid;
 static pid_controller_t s_roll_pid;
 static float s_pitch_setpoint_deg = 0.0f;
 static float s_roll_setpoint_deg = 0.0f;
+
+static void pid_input_task(void *arg);
+static void pid_control_task(void *arg);
 
 static void pid_control_apply_settings_from_config(void)
 {
@@ -83,9 +86,9 @@ static void pid_input_task(void *arg)
                 .roll_measurement = orientation.roll,
             };
 
-            if (pid_input_queue_handle != NULL)
+            if (s_pid_input_queue_handle != NULL)
             {
-                xQueueOverwrite(pid_input_queue_handle, &in);
+                xQueueOverwrite(s_pid_input_queue_handle, &in);
             }
         }
     }
@@ -159,12 +162,12 @@ float pid_update(pid_controller_t *pid,
 
 QueueHandle_t pid_control_get_queue_handle(void)
 {
-    return pid_output_queue_handle;
+    return s_pid_output_queue_handle;
 }
 
 QueueHandle_t pid_control_get_input_queue_handle(void)
 {
-    return pid_input_queue_handle;
+    return s_pid_input_queue_handle;
 }
 
 QueueHandle_t pid_control_get_monitor_queue_handle(void)
@@ -192,19 +195,19 @@ esp_err_t pid_control_start(void)
         return ESP_OK;
     }
 
-    if (pid_input_queue_handle == NULL)
+    if (s_pid_input_queue_handle == NULL)
     {
-        pid_input_queue_handle = xQueueCreate(PID_INPUT_QUEUE_LEN, sizeof(pid_input_t));
-        if (pid_input_queue_handle == NULL)
+        s_pid_input_queue_handle = xQueueCreate(PID_INPUT_QUEUE_LEN, sizeof(pid_input_t));
+        if (s_pid_input_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
     }
 
-    if (pid_output_queue_handle == NULL)
+    if (s_pid_output_queue_handle == NULL)
     {
-        pid_output_queue_handle = xQueueCreate(PID_OUTPUT_QUEUE_LEN, sizeof(pid_output_t));
-        if (pid_output_queue_handle == NULL)
+        s_pid_output_queue_handle = xQueueCreate(PID_OUTPUT_QUEUE_LEN, sizeof(pid_output_t));
+        if (s_pid_output_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
@@ -252,21 +255,21 @@ esp_err_t pid_control_start(void)
     return ESP_OK;
 }
 
-void pid_control_task(void *arg)
+static void pid_control_task(void *arg)
 {
     uint32_t log_div = 0U;
     (void)arg;
 
     while (1)
     {
-        if (pid_input_queue_handle == NULL)
+        if (s_pid_input_queue_handle == NULL)
         {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
 
         pid_input_t in;
-        if (xQueueReceive(pid_input_queue_handle, &in, pdMS_TO_TICKS(100)) == pdPASS)
+        if (xQueueReceive(s_pid_input_queue_handle, &in, pdMS_TO_TICKS(100)) == pdPASS)
         {
             pid_output_t out = {
                 .pitch_measurement = in.pitch_measurement,
@@ -275,9 +278,9 @@ void pid_control_task(void *arg)
                 .roll_output = pid_update(&s_roll_pid, s_roll_setpoint_deg, in.roll_measurement, PID_DT_SECONDS),
             };
 
-            if (pid_output_queue_handle != NULL)
+            if (s_pid_output_queue_handle != NULL)
             {
-                xQueueOverwrite(pid_output_queue_handle, &out);
+                xQueueOverwrite(s_pid_output_queue_handle, &out);
             }
             if (s_pid_monitor_queue_handle != NULL)
             {

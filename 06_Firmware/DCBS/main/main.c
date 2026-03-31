@@ -9,6 +9,7 @@
 #include "servo_driver.h"
 #include "watchdog_service.h"
 #include "display_driver.h"
+#include "esp_err.h"
 
 #define DISABLE_TASK_WDT_TEMPORARY 1
 

@@ -111,11 +111,6 @@ bool i2c_wrapper_is_initialized(void)
 	return s_initialized;
 }
 
-i2c_master_bus_handle_t i2c_wrapper_get_bus_handle(void)
-{
-	return s_bus_handle;
-}
-
 esp_err_t i2c_wrapper_add_device(uint8_t address_7bit,
 								 uint32_t scl_speed_hz,
 								 i2c_master_dev_handle_t *out_dev_handle)

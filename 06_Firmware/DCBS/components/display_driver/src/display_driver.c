@@ -15,7 +15,6 @@
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
-#include "watchdog_service.h"
 
 #define I2C_XFER_TIMEOUT_MS 100
 #define UI_HISTORY_LEN 64

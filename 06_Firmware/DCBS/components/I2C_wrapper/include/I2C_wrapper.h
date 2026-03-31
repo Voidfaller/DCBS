@@ -22,7 +22,6 @@ typedef struct
 esp_err_t i2c_wrapper_init(const i2c_wrapper_config_t *config);
 
 bool i2c_wrapper_is_initialized(void);
-i2c_master_bus_handle_t i2c_wrapper_get_bus_handle(void);
 
 esp_err_t i2c_wrapper_add_device(uint8_t address_7bit,
 								 uint32_t scl_speed_hz,

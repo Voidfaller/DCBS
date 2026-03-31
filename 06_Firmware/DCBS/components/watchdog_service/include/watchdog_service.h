@@ -1,6 +1,6 @@
 #pragma once
 
-#include "esp_task_wdt.h"
+#include <stdint.h>
 
 typedef int watchdog_handle_t;
 #define WATCHDOG_INVALID_HANDLE (-1)

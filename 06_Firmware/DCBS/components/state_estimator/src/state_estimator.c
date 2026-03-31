@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "freertos/queue.h"
+#include "freertos/task.h"
 
 #define RAD_TO_DEG 57.2958f
 // Pid controller krijgt dit later pitch and roll
@@ -12,7 +13,9 @@
 
 static orientation_t orientation;
 static TaskHandle_t s_state_estimator_task_handle = NULL;
-QueueHandle_t state_estimator_queue_handle = NULL;
+static QueueHandle_t s_state_estimator_queue_handle = NULL;
+
+static void state_estimator_task(void *arg);
 
 //Start altijd vlak (0) 
 void state_estimator_init(void)
@@ -30,10 +33,10 @@ esp_err_t state_estimator_start(void)
         return ESP_OK;
     }
 
-    if (state_estimator_queue_handle == NULL)
+    if (s_state_estimator_queue_handle == NULL)
     {
-        state_estimator_queue_handle = xQueueCreate(1, sizeof(orientation_t));
-        if (state_estimator_queue_handle == NULL)
+        s_state_estimator_queue_handle = xQueueCreate(1, sizeof(orientation_t));
+        if (s_state_estimator_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
@@ -50,6 +53,7 @@ esp_err_t state_estimator_start(void)
 
     return ESP_OK;
 }
+
 void state_estimator_update(imu_data_t *data, float dt)
 {
     // Gyroscope integration
@@ -86,33 +90,34 @@ orientation_t state_estimator_get_orientation(void)
 
 QueueHandle_t state_estimator_get_queue_handle(void)
 {
-    return state_estimator_queue_handle;
+    return s_state_estimator_queue_handle;
 }
 
-void state_estimator_task(void *arg)
+static void state_estimator_task(void *arg)
 {
+    QueueHandle_t gyro_queue = NULL;
     (void)arg;
+
     while (1)
     {
-        if (gyro_queue_handle == NULL)
+        if (gyro_queue == NULL)
         {
+            gyro_queue = gyro_driver_get_queue_handle();
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
 
         imu_data_t data;
-        if (xQueueReceive(gyro_queue_handle, &data, pdMS_TO_TICKS(100)) == pdPASS)
+        if (xQueueReceive(gyro_queue, &data, pdMS_TO_TICKS(100)) == pdPASS)
         {
             state_estimator_update(&data, 0.01f); // 10ms update interval
-            if (state_estimator_queue_handle != NULL)
+            if (s_state_estimator_queue_handle != NULL)
             {
                 orientation_t current_orientation = state_estimator_get_orientation();
-                xQueueOverwrite(state_estimator_queue_handle, &current_orientation);
+                xQueueOverwrite(s_state_estimator_queue_handle, &current_orientation);
                 // printf("Orientation updated: pitch=%.2f, roll=%.2f\n", current_orientation.pitch, current_orientation.roll);
             }
-        
-            //debug print
-            orientation_t current_orientation = state_estimator_get_orientation();
+
         }
     }
-}   
+}

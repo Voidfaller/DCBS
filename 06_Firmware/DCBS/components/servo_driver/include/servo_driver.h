@@ -23,9 +23,6 @@ typedef struct
     uint32_t cmd_queue_len;
     uint32_t task_stack_size;
     uint32_t task_priority;
-    void *cmd_queue_handle;
-    void *task_handle;
-
 } servo_t;
 
 typedef struct
@@ -43,5 +40,6 @@ esp_err_t servo_set_target(servo_t *servo, float angle, bool immediate);
 esp_err_t servo_stabilizer_start_pitch(void);
 void servo_set_pitch_pid_bypass(bool enabled);
 bool servo_get_pitch_pid_bypass(void);
+
 //helper functions
 int angle_to_pulse_us(servo_t *servo, float angle);

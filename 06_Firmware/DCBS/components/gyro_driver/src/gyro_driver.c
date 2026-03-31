@@ -5,6 +5,7 @@
 #include "I2C_wrapper.h"
 #include "esp_timer.h"
 #include "watchdog_service.h"
+
 #define MPU6050_ADDR 0x68
 
 #define MPU6050_PWR_MGMT_1 0x6B
@@ -16,13 +17,21 @@
 #define GYRO_ERROR_LOG_INTERVAL_MS 1000U
 #define GYRO_PERF_LOG_INTERVAL_US (2000000ULL)
 
-QueueHandle_t gyro_queue_handle = NULL;
+static QueueHandle_t s_gyro_queue_handle = NULL;
 static QueueHandle_t s_gyro_monitor_queue_handle = NULL;
 
 static i2c_master_dev_handle_t s_mpu6050_dev = NULL;
 static TaskHandle_t s_gyro_task_handle = NULL;
 
 static watchdog_handle_t s_watchdog_handle = WATCHDOG_INVALID_HANDLE;
+
+static void gyro_driver_task(void *arg);
+
+QueueHandle_t gyro_driver_get_queue_handle(void)
+{
+    return s_gyro_queue_handle;
+}
+
 QueueHandle_t gyro_driver_get_monitor_queue_handle(void)
 {
     return s_gyro_monitor_queue_handle;
@@ -47,7 +56,6 @@ esp_err_t gyro_driver_init(void)
     {
         return err;
     }
-
 
     return i2c_wrapper_write_reg_u8(s_mpu6050_dev, MPU6050_PWR_MGMT_1, 0x00, GYRO_I2C_TIMEOUT_MS);
 }
@@ -131,10 +139,10 @@ esp_err_t gyro_driver_start(void)
         return ESP_OK;
     }
 
-    if (gyro_queue_handle == NULL)
+    if (s_gyro_queue_handle == NULL)
     {
-        gyro_queue_handle = xQueueCreate(1, sizeof(imu_data_t));
-        if (gyro_queue_handle == NULL)
+        s_gyro_queue_handle = xQueueCreate(1, sizeof(imu_data_t));
+        if (s_gyro_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
@@ -160,9 +168,8 @@ esp_err_t gyro_driver_start(void)
     return ESP_OK;
 }
 
-void gyro_driver_task(void *arg)
+static void gyro_driver_task(void *arg)
 {
-
     // initialize the driver
     esp_err_t err;
     (void)arg;
@@ -175,7 +182,7 @@ void gyro_driver_task(void *arg)
         return;
     }
 
-    if (gyro_queue_handle == NULL)
+    if (s_gyro_queue_handle == NULL)
     {
         printf("Gyro queue is not initialized\n");
         s_gyro_task_handle = NULL;
@@ -256,9 +263,9 @@ void gyro_driver_task(void *arg)
             perf_max_read_us = read_us;
         }
 
-        if (gyro_queue_handle != NULL)
+        if (s_gyro_queue_handle != NULL)
         {
-            xQueueOverwrite(gyro_queue_handle, &data);
+            xQueueOverwrite(s_gyro_queue_handle, &data);
             // printf("Gyro data sent to queue: gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
             //        data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
             //        data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
