@@ -1,131 +1,71 @@
-# Mechanisch ontwerp
+# DCBS mechnische ontwerp
 
-## 1. Onderdelen
+## overview
 
-Onderdelen:
-Base (onderplaat)
-Servo X-as
-Servo Y-as
-Inner frame (kantelplatform)
-Cup holder
-MPU6050 sensor
-ESP32 + voeding
-Display
+The DCBS is a two axis stablization platform designed to maintain a cup in a level position using servo's motors and sensor. the system detects tilt using an MPU6050 sensor and compensates distrubances via a PID control loop.
+this document describes the mechanical design of the system, including all 3D printed components and their dimensions.
 
-De servo’s staan haaks op elkaar zodat ze twee richtingen kunnen corrigeren.
+## system architecture:
+the system consists of:
+- a fixed base plate 
+- a tilting platform 
+- a central pivot join
+- two servo motors
+- two linkaga arms
+- a cup holder mounted on top
+- an MPU6050 sensor placed at the center of the platform
+## mechnical design
 
-Beweging:
-Servo 1 : kantelt links/rechts (X-axis)
-Servo 2 : kantelt voor/achter (Y-axis)
+### 1. Base Plate
 
-## Belangrijke Basismaten:
+Dimensions: 150*150 *12 mm
 
-gebaseerd op de requirements+onderdelen:
+Features: two servo cutouts:  size: 42*22 mm 
+position: servo 1: X= _45mm,y=0
+            servo 2: X= 0, Y=+45mm
+central pivor hole: diameter 5mm
 
-**Beker** : Diameter: 80mm ; Platform: 100 mm 
-**Servo** : Body: ~40*20 *40 mm; Torque: voldoende voor 1kg.
+### 2. Platform 
+DImension: 120*120 * 8 
 
-## 2. Afmetingen
+Features: 
+central pivot hole: 5,5 mm 
+2* linkage connection holes: diameter: 3,2 mm 
 
-### 2.1 BasePlat:
+### 3. cup holder
+dimensions: outer diameter: 100mm
+inner diameter: 85 mm 
+height: 25 mm
 
-150*150 *8 mm
-servo mount gaten en mcu gaten esp32 en rubber feet
+features:
+inner lip: diameter: 83mm; height: 2-3mm
+designed to hold standard cups
 
-Rubber feet:
-4 gaten:
-diameter 6 mm
-diepte 3 mm
-hoekposities:
-10 mm van elke rand
+### 4. linkage arms 2* 
 
-Servo MG996R mounting holes:
-2 gaten 
-Diameter = 3 mm
-afstand 49 
-Termination = Through All
+centre to center lenght : 50 mm
+holde diameter : 3,2mm 
+widht: 10mm
+thickness : 4mm 
 
-### 2.2 Outframe X-as
-
-120*120 * 
-binnen Frame: 12 
-
-
-### 2.3 InnerFrame Y-as
-
-100 *100 *
-Binnen Frame: 10mm 
-
-### 2.4 Cup holder 
-Cirkel: 100
-binnen cirkel 85 
-Extrude 3mm 
-
-### 2.5 Servo bracket
-60*40 * 
-
-twee gaten 
-15mm / boven
+features: connect servo arms to platfrom 
+transfer motion from servo rotation to platfrom tilt
 
 
-## 3. Hardware 
 
+## Sensor placement:
 
-Base Plate: Voeding - Esp32 - Servo 
-Servo Bracket:  Houdt servo X
-Outer Frame: draagt inner frame, draait x-as 
-inner frame: Draagt Cup Holder, tilt sensor 
+the MPU6050 sensor must be placed:
+- at the geometric center of the platform.
+- directly above the pivot acis
+- firmly mounted to avoid vibration artifacts.
+## 3d Printing guigelines.
 
+materials: PETG 
+walls: 3 perimeters
+infill:
 
--------------------------
-
-Nieuwe versie:
-
-1. Base Plate
-afmetingen: 200* 200 mm
-dikte: 6mm
-
-voeg toe: 
-servo gaten:
-- 2 servo positites links/rechts
-- hartafstand: 120mm
-
-gat maten:
-- M3 gaten : 3,2mm
-
-
-Elektronica ruimte:
-- uistparing: 80*60 mm
-- diepte: 3mm 
-voor ESP32 en MPU6050
-
-2. Servo Mount: dit kan je ook online vinden
-
-maak een L-beugel:
-base: 60*40mm 
-Hoogte: 50mm
-dikte:4mm
-
-3. Outer Frame:
-vierkant ring
-buitenmaat: 140*140 mm
-binnenmaat: 110*110 mm
-dikte 6 mm
-
--servo connectie: aan beide zijkanten: gat voor as: 6mm dit is waar de servo horn komt
-
-
-4. Inner frame:
-buitenmaat: 110*110 mm
-Binnenmaat: 90*90 mm
-dikte: 6mm
-zijkanen: 6mm gaten voor rotatie ; 90 gedraaid t.o.v outerframe
-
-
-5. platform (cup holder)
-
-diamter: 100 mm
-dikte: 5mm
-
-rand: hoogte: 10mm ; dikte: 3mm; voorkomt fat beker schuift 
-sensor mount: klein vlak: 20*20mm voor mpu6050
+base: 40% 
+platform: 30%
+cup holder: 25%
+link arms: 100% 
