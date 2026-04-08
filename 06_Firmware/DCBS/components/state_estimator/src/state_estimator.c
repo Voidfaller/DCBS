@@ -1,6 +1,7 @@
 #include "state_estimator.h"
 #include <stdio.h>
 #include <math.h>
+#include "freertos/queue.h"
 
 #define RAD_TO_DEG 57.2958f
 // Pid controller krijgt dit later pitch and roll
@@ -11,6 +12,7 @@
 
 static orientation_t orientation;
 static TaskHandle_t s_state_estimator_task_handle = NULL;
+QueueHandle_t state_estimator_queue_handle = NULL;
 
 //Start altijd vlak (0) 
 void state_estimator_init(void)
@@ -26,6 +28,15 @@ esp_err_t state_estimator_start(void)
     if (s_state_estimator_task_handle != NULL)
     {
         return ESP_OK;
+    }
+
+    if (state_estimator_queue_handle == NULL)
+    {
+        state_estimator_queue_handle = xQueueCreate(1, sizeof(orientation_t));
+        if (state_estimator_queue_handle == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
     }
 
     state_estimator_init();
@@ -73,6 +84,11 @@ orientation_t state_estimator_get_orientation(void)
     return orientation;
 }
 
+QueueHandle_t state_estimator_get_queue_handle(void)
+{
+    return state_estimator_queue_handle;
+}
+
 void state_estimator_task(void *arg)
 {
     (void)arg;
@@ -88,10 +104,15 @@ void state_estimator_task(void *arg)
         if (xQueueReceive(gyro_queue_handle, &data, pdMS_TO_TICKS(100)) == pdPASS)
         {
             state_estimator_update(&data, 0.01f); // 10ms update interval
+            if (state_estimator_queue_handle != NULL)
+            {
+                orientation_t current_orientation = state_estimator_get_orientation();
+                xQueueOverwrite(state_estimator_queue_handle, &current_orientation);
+                // printf("Orientation updated: pitch=%.2f, roll=%.2f\n", current_orientation.pitch, current_orientation.roll);
+            }
         
             //debug print
             orientation_t current_orientation = state_estimator_get_orientation();
-            printf("Pitch: %.2f, Roll: %.2f\n", current_orientation.pitch, current_orientation.roll);
         }
     }
 }   

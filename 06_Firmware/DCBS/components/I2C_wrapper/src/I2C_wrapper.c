@@ -1,10 +1,37 @@
 #include "I2C_wrapper.h"
 
 #include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 static i2c_master_bus_handle_t s_bus_handle = NULL;
 static i2c_wrapper_config_t s_cfg;
 static bool s_initialized = false;
+static SemaphoreHandle_t s_i2c_mutex = NULL;
+
+static esp_err_t i2c_wrapper_lock(int timeout_ms)
+{
+	if (s_i2c_mutex == NULL)
+	{
+		return ESP_ERR_INVALID_STATE;
+	}
+
+	TickType_t wait_ticks = (timeout_ms <= 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms + 5);
+	if (xSemaphoreTake(s_i2c_mutex, wait_ticks) != pdTRUE)
+	{
+		return ESP_ERR_TIMEOUT;
+	}
+
+	return ESP_OK;
+}
+
+static void i2c_wrapper_unlock(void)
+{
+	if (s_i2c_mutex != NULL)
+	{
+		xSemaphoreGive(s_i2c_mutex);
+	}
+}
 
 static bool i2c_wrapper_is_valid_config(const i2c_wrapper_config_t *config)
 {
@@ -66,6 +93,14 @@ esp_err_t i2c_wrapper_init(const i2c_wrapper_config_t *config)
 		return ret;
 	}
 
+	s_i2c_mutex = xSemaphoreCreateMutex();
+	if (s_i2c_mutex == NULL)
+	{
+		i2c_del_master_bus(s_bus_handle);
+		s_bus_handle = NULL;
+		return ESP_ERR_NO_MEM;
+	}
+
 	s_cfg = *config;
 	s_initialized = true;
 	return ESP_OK;
@@ -106,9 +141,9 @@ esp_err_t i2c_wrapper_add_device(uint8_t address_7bit,
 }
 
 esp_err_t i2c_wrapper_scan(uint8_t *addresses,
-					   size_t max_addresses,
-					   size_t *found_count,
-					   int timeout_ms)
+						   size_t max_addresses,
+						   size_t *found_count,
+						   int timeout_ms)
 {
 	size_t found = 0;
 
@@ -119,7 +154,12 @@ esp_err_t i2c_wrapper_scan(uint8_t *addresses,
 
 	for (uint8_t addr = 0x08; addr <= 0x77; addr++)
 	{
-		esp_err_t ret = i2c_master_probe(s_bus_handle, addr, timeout_ms);
+		esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+		if (ret == ESP_OK)
+		{
+			ret = i2c_master_probe(s_bus_handle, addr, timeout_ms);
+			i2c_wrapper_unlock();
+		}
 		if (ret == ESP_OK)
 		{
 			if (addresses != NULL && found < max_addresses)
@@ -149,7 +189,37 @@ esp_err_t i2c_wrapper_txrx(i2c_master_dev_handle_t dev_handle,
 	{
 		return ESP_ERR_INVALID_ARG;
 	}
-	return i2c_master_transmit_receive(dev_handle, tx_data, tx_len, rx_data, rx_len, timeout_ms);
+
+	esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+	if (ret != ESP_OK)
+	{
+		return ret;
+	}
+
+	ret = i2c_master_transmit_receive(dev_handle, tx_data, tx_len, rx_data, rx_len, timeout_ms);
+	i2c_wrapper_unlock();
+	return ret;
+}
+
+esp_err_t i2c_wrapper_tx(i2c_master_dev_handle_t dev_handle,
+						 const uint8_t *tx_data,
+						 size_t tx_len,
+						 int timeout_ms)
+{
+	if (dev_handle == NULL || tx_data == NULL || tx_len == 0U)
+	{
+		return ESP_ERR_INVALID_ARG;
+	}
+
+	esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+	if (ret != ESP_OK)
+	{
+		return ret;
+	}
+
+	ret = i2c_master_transmit(dev_handle, tx_data, tx_len, timeout_ms);
+	i2c_wrapper_unlock();
+	return ret;
 }
 
 esp_err_t i2c_wrapper_write_reg(i2c_master_dev_handle_t dev_handle,
@@ -179,7 +249,15 @@ esp_err_t i2c_wrapper_write_reg(i2c_master_dev_handle_t dev_handle,
 		memcpy(&buf[1], data, data_len);
 	}
 
-	return i2c_master_transmit(dev_handle, buf, data_len + 1U, timeout_ms);
+	esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+	if (ret != ESP_OK)
+	{
+		return ret;
+	}
+
+	ret = i2c_master_transmit(dev_handle, buf, data_len + 1U, timeout_ms);
+	i2c_wrapper_unlock();
+	return ret;
 }
 
 esp_err_t i2c_wrapper_read_reg(i2c_master_dev_handle_t dev_handle,
@@ -193,7 +271,15 @@ esp_err_t i2c_wrapper_read_reg(i2c_master_dev_handle_t dev_handle,
 		return ESP_ERR_INVALID_ARG;
 	}
 
-	return i2c_master_transmit_receive(dev_handle, &reg, 1, data, data_len, timeout_ms);
+	esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+	if (ret != ESP_OK)
+	{
+		return ret;
+	}
+
+	ret = i2c_master_transmit_receive(dev_handle, &reg, 1, data, data_len, timeout_ms);
+	i2c_wrapper_unlock();
+	return ret;
 }
 
 esp_err_t i2c_wrapper_write_reg_u8(i2c_master_dev_handle_t dev_handle,
@@ -210,4 +296,27 @@ esp_err_t i2c_wrapper_read_reg_u8(i2c_master_dev_handle_t dev_handle,
 								  int timeout_ms)
 {
 	return i2c_wrapper_read_reg(dev_handle, reg, value, 1, timeout_ms);
+}
+
+esp_err_t i2c_wrapper_probe(uint8_t address_7bit, int timeout_ms)
+{
+	esp_err_t ret = i2c_wrapper_lock(timeout_ms);
+	if (ret == ESP_OK)
+	{
+		ret = i2c_master_probe(s_bus_handle, address_7bit, timeout_ms);
+		i2c_wrapper_unlock();
+	}
+	if (ret == ESP_OK)
+	{
+		printf("Device found at I2C address 0x%02X\n", address_7bit);
+	}
+	else if (ret == ESP_ERR_TIMEOUT)
+	{
+		printf("No response from I2C address 0x%02X (timeout)\n", address_7bit);
+	}
+	else
+	{
+		printf("Error probing I2C address 0x%02X: 0x%x\n", address_7bit, ret);
+	}
+	return ret;
 }

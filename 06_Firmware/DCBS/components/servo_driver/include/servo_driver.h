@@ -40,5 +40,8 @@ void servo_rotate(servo_t *servo, float angle);
 esp_err_t servo_start_task(servo_t *servo);
 esp_err_t servo_send_command(servo_t *servo, const servo_cmd_t *cmd);
 esp_err_t servo_set_target(servo_t *servo, float angle, bool immediate);
+esp_err_t servo_stabilizer_start_pitch(void);
+void servo_set_pitch_pid_bypass(bool enabled);
+bool servo_get_pitch_pid_bypass(void);
 //helper functions
 int angle_to_pulse_us(servo_t *servo, float angle);
