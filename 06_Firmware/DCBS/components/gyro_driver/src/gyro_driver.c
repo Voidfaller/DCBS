@@ -166,6 +166,7 @@ void gyro_driver_task(void *arg)
     // initialize the driver
     esp_err_t err;
     (void)arg;
+    uint32_t trace_div = 0U;
 
     err = gyro_driver_init();
     if (err != ESP_OK)
@@ -259,9 +260,14 @@ void gyro_driver_task(void *arg)
         if (gyro_queue_handle != NULL)
         {
             xQueueOverwrite(gyro_queue_handle, &data);
-            // printf("Gyro data sent to queue: gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
-            //        data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
-            //        data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
+            trace_div++;
+            if (trace_div >= 20U)
+            {
+                printf("[gyro] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
+                       data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
+                       data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
+                trace_div = 0U;
+            }
         }
 
         if (s_gyro_monitor_queue_handle != NULL)

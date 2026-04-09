@@ -15,7 +15,7 @@
 #define PID_OUTPUT_QUEUE_LEN 1U
 #define PID_MONITOR_QUEUE_LEN 1U
 #define PID_DT_SECONDS 0.01f
-#define PID_GAIN_SCALE 0.1f
+#define PID_GAIN_SCALE 1.0f
 
 QueueHandle_t pid_input_queue_handle = NULL;
 QueueHandle_t pid_output_queue_handle = NULL;
@@ -34,8 +34,8 @@ static void pid_control_apply_settings_from_config(void)
     cfg = config_manager_get();
     if (cfg == NULL)
     {
-        pid_init(&s_pitch_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
-        pid_init(&s_roll_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
+        pid_init(&s_pitch_pid, 0.0f, 0.0f, 0.0f, -90.0f, 90.0f);
+        pid_init(&s_roll_pid, 0.0f, 0.0f, 0.0f, -90.0f, 90.0f);
         s_pitch_setpoint_deg = 0.0f;
         s_roll_setpoint_deg = 0.0f;
         return;
@@ -49,8 +49,8 @@ static void pid_control_apply_settings_from_config(void)
         (float)cfg->pid_kp * PID_GAIN_SCALE,
         (float)cfg->pid_ki * PID_GAIN_SCALE,
         (float)cfg->pid_kd * PID_GAIN_SCALE,
-        -30.0f,
-        30.0f);
+        -90.0f,
+        90.0f);
 
     pid_init(
         &s_roll_pid,
@@ -59,6 +59,12 @@ static void pid_control_apply_settings_from_config(void)
         (float)cfg->pid_kd * PID_GAIN_SCALE,
         -90.0f,
         90.0f);
+
+    printf("[pid] loaded kp=%.2f ki=%.2f kd=%.2f setpoint=%.2f\n",
+           (double)s_pitch_pid.kp,
+           (double)s_pitch_pid.ki,
+           (double)s_pitch_pid.kd,
+           (double)s_pitch_setpoint_deg);
 }
 
 static void pid_input_task(void *arg)
@@ -287,11 +293,12 @@ void pid_control_task(void *arg)
             log_div++;
             if (log_div >= 20U)
             {
-                // printf("PID out pitch=%.2f roll=%.2f | meas pitch=%.2f roll=%.2f\n",
-                //        out.pitch_output,
-                //        out.roll_output,
-                //        out.pitch_measurement,
-                //        out.roll_measurement);
+                printf("[pid] sp=%.2f meas=(%.2f, %.2f) out=(%.2f, %.2f)\n",
+                       s_pitch_setpoint_deg,
+                       out.pitch_measurement,
+                       out.roll_measurement,
+                       out.pitch_output,
+                       out.roll_output);
                 log_div = 0U;
             }
         }

@@ -13,7 +13,7 @@
 #define SERVO_DEFAULT_MIN_ANGLE_DEG (-90.0f)
 #define SERVO_DEFAULT_MAX_ANGLE_DEG (90.0f)
 #define SERVO_DEFAULT_TASK_PERIOD_MS (20U)
-#define SERVO_DEFAULT_TASK_STEP_DEG (2.0f)
+#define SERVO_DEFAULT_TASK_STEP_DEG (6.0f)
 #define SERVO_DEFAULT_CMD_QUEUE_LEN (8U)
 #define SERVO_DEFAULT_TASK_STACK_SIZE (2048U)
 #define SERVO_DEFAULT_TASK_PRIORITY (5U)
@@ -21,13 +21,13 @@
 
 #define PITCH_SERVO_GPIO 18
 #define PITCH_SERVO_NEUTRAL_DEG 0.0f
-#define PITCH_SERVO_GAIN 3.0f
-#define PITCH_SERVO_DIRECT_GAIN 1.2f
+#define PITCH_SERVO_GAIN 1.0f
+#define PITCH_SERVO_DIRECT_GAIN 1.0f
 #define SERVO_PID_OUTPUT_DEADBAND 0.2f
 #define SERVO_DIRECT_ANGLE_DEADBAND_DEG 0.5f
 #define SERVO_MIN_PULSE_US_LIMIT 500.0f
 #define SERVO_MAX_PULSE_US_LIMIT 2500.0f
-#define SERVO_MIN_EFFECTIVE_SPAN_US 1200.0f
+#define SERVO_MIN_EFFECTIVE_SPAN_US 800.0f
 
 static TaskHandle_t s_pitch_servo_bridge_task = NULL;
 static volatile bool s_pitch_servo_pid_bypass = false;
@@ -38,12 +38,12 @@ static servo_t s_pitch_servo = {
     .channel = LEDC_CHANNEL_0,
     .current_angle = PITCH_SERVO_NEUTRAL_DEG,
     .target_angle = PITCH_SERVO_NEUTRAL_DEG,
-    .min_angle_deg = -30.0f,
-    .max_angle_deg = 30.0f,
-    .min_pulse_us = 500.0f,
-    .max_pulse_us = 2500.0f,
+    .min_angle_deg = -90.0f,
+    .max_angle_deg = 90.0f,
+    .min_pulse_us = 1000.0f,
+    .max_pulse_us = 2000.0f,
     .task_period_ms = 20,
-    .task_step_deg = 2.0f,
+    .task_step_deg = 6.0f,
     .cmd_queue_len = 1,
     .task_stack_size = 2048,
     .task_priority = 6,
@@ -55,6 +55,7 @@ static void pitch_servo_stabilizer_task(void *arg)
     QueueHandle_t orientation_queue = NULL;
     QueueHandle_t servo_cmd_queue = NULL;
     (void)arg;
+    uint32_t trace_div = 0U;
 
     while (1)
     {
@@ -96,6 +97,13 @@ static void pitch_servo_stabilizer_task(void *arg)
                     .immediate = false,
                 };
                 xQueueOverwrite(servo_cmd_queue, &cmd);
+
+                trace_div++;
+                if (trace_div >= 20U)
+                {
+                    printf("[servo] direct pitch=%.2f target=%.2f\n", pitch, target);
+                    trace_div = 0U;
+                }
             }
             continue;
         }
@@ -115,6 +123,13 @@ static void pitch_servo_stabilizer_task(void *arg)
                 .immediate = false,
             };
             xQueueOverwrite(servo_cmd_queue, &cmd);
+
+            trace_div++;
+            if (trace_div >= 20U)
+            {
+                printf("[servo] pid control=%.2f target=%.2f\n", control, target);
+                trace_div = 0U;
+            }
         }
     }
 }

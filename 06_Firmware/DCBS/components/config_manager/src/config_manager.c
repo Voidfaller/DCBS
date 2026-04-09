@@ -8,7 +8,7 @@
 #define CONFIG_NAMESPACE "app_cfg"
 #define CONFIG_KEY "settings"
 #define CONFIG_MAGIC 0x4346474DU
-#define CONFIG_VERSION 1U
+#define CONFIG_VERSION 2U
 
 typedef struct
 {
@@ -20,9 +20,9 @@ typedef struct
 
 static const app_config_t k_default_config = {
 	.pid_setpoint = 0,
-	.pid_kp = 25,
-	.pid_ki = 2,
-	.pid_kd = 8,
+	.pid_kp = 20,
+	.pid_ki = 0,
+	.pid_kd = 0,
 	.servo_min_us = 500,
 	.servo_max_us = 2500,
 	.ui_frame_ms = 50,

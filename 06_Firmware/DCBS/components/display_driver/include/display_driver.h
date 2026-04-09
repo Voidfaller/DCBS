@@ -60,6 +60,7 @@ typedef struct
     display_ui_screen_t ui_screen;
     display_ui_screen_t return_screen;
     int16_t pid_history[64];
+    int16_t pid_output_history[64];
     uint8_t pid_history_head;
 } display_t;
 

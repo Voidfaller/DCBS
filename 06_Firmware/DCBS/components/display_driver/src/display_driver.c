@@ -52,12 +52,12 @@ typedef struct
 
 static display_ui_task_ctx_t s_ui_task_ctx;
 static int32_t s_ui_pid_setpoint = 0;
-static int32_t s_ui_pid_kp = 25;
-static int32_t s_ui_pid_ki = 2;
-static int32_t s_ui_pid_kd = 8;
+static int32_t s_ui_pid_kp = 8;
+static int32_t s_ui_pid_ki = 0;
+static int32_t s_ui_pid_kd = 2;
 static int32_t s_ui_servo_mode = 0;
 static const display_ui_setting_t s_pid_ui_settings[] = {
-    DISPLAY_UI_SETTING("SETPOINT", &s_ui_pid_setpoint, -30, 30, 1),
+    DISPLAY_UI_SETTING("SETPOINT", &s_ui_pid_setpoint, -90, 90, 1),
     DISPLAY_UI_SETTING("KP", &s_ui_pid_kp, 0, 100, 1),
     DISPLAY_UI_SETTING("KI", &s_ui_pid_ki, 0, 100, 1),
     DISPLAY_UI_SETTING("KD", &s_ui_pid_kd, 0, 100, 1),
@@ -349,8 +349,8 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
     int graph_y1 = 10;
     int graph_w = graph_x1 - graph_x0;
     int graph_mid = (graph_y0 + graph_y1) / 2;
-    int32_t angle_range_deg = 30;
-    int32_t output_range = 30;
+    int32_t angle_range_deg = 90;
+    int32_t output_range = 90;
     int32_t setpoint_clamped = clamp_i32(pid_setpoint, -angle_range_deg, angle_range_deg);
     int32_t measured_clamped = clamp_i32(pid_measured, -angle_range_deg, angle_range_deg);
     int32_t output_clamped = clamp_i32(pid_output, -output_range, output_range);
@@ -360,6 +360,7 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
     display_drawRect(display, (graph_x0 + graph_x1) / 2, (graph_y0 + graph_y1) / 2, graph_w, graph_y1 - graph_y0, 1);
 
     display->pid_history[display->pid_history_head] = (int16_t)measured_clamped;
+    display->pid_output_history[display->pid_history_head] = (int16_t)output_clamped;
     display->pid_history_head = (uint8_t)((display->pid_history_head + 1U) % UI_HISTORY_LEN);
 
     int setpoint_y = graph_mid - (int)((setpoint_clamped * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg));
@@ -381,6 +382,22 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
         int idx1 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i) % UI_HISTORY_LEN);
         int y0 = graph_mid - (display->pid_history[idx0] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
         int y1 = graph_mid - (display->pid_history[idx1] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
+        int x0 = graph_x0 + 1 + (i - 1) * 2;
+        int x1 = graph_x0 + 1 + i * 2;
+        display_drawLine(display, x0, y0, x1, y1, 1);
+    }
+
+    for (int i = 1; i < 46; i++)
+    {
+        if ((i % 2) == 0)
+        {
+            continue;
+        }
+
+        int idx0 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i - 1) % UI_HISTORY_LEN);
+        int idx1 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i) % UI_HISTORY_LEN);
+        int y0 = graph_mid - (display->pid_output_history[idx0] * (graph_y1 - graph_y0 - 2)) / (2 * output_range);
+        int y1 = graph_mid - (display->pid_output_history[idx1] * (graph_y1 - graph_y0 - 2)) / (2 * output_range);
         int x0 = graph_x0 + 1 + (i - 1) * 2;
         int x1 = graph_x0 + 1 + i * 2;
         display_drawLine(display, x0, y0, x1, y1, 1);
@@ -635,6 +652,7 @@ esp_err_t display_init(display_t *display, uint8_t addr, int width, int height)
     // Initialize shadow RAM
     memset(display->shadow_ram, 0x00, sizeof(display->shadow_ram));
     memset(display->pid_history, 0x00, sizeof(display->pid_history));
+    memset(display->pid_output_history, 0x00, sizeof(display->pid_output_history));
     display->pid_history_head = 0;
     display->settings = NULL;
     display->setting_count = 0;
