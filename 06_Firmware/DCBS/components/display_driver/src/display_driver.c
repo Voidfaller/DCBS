@@ -975,10 +975,7 @@ static void display_ui_task_run(void *arg)
         display_ui_handle_input(&ctx->display, events.up, events.down, events.select, events.back);
 
         bool desired_bypass = (s_ui_servo_mode != 0);
-        if (servo_get_pitch_pid_bypass() != desired_bypass)
-        {
-            servo_set_pitch_pid_bypass(desired_bypass);
-        }
+       
 
         display_ui_render(&ctx->display, &ui_data);
         display_flush(&ctx->display);
@@ -1029,7 +1026,7 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
     s_ui_task_ctx.frame = 0;
     s_ui_task_ctx.running = true;
     s_ui_task_ctx.config_bound = config_manager_is_initialized();
-    s_ui_servo_mode = servo_get_pitch_pid_bypass() ? 1 : 0;
+    s_ui_servo_mode = 1;
 
     if (s_ui_task_ctx.config_bound)
     {

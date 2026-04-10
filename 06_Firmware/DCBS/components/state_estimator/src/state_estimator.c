@@ -34,7 +34,7 @@ static float s_gyro_z_accum = 0.0f;
 static float compute_accel_pitch_deg(const imu_data_t *data)
 {
     return atan2f(
-               data->accel.accel_x,
+               -data->accel.accel_x,
                sqrtf(data->accel.accel_y * data->accel.accel_y +
                      data->accel.accel_z * data->accel.accel_z)) *
            RAD_TO_DEG;
@@ -97,12 +97,13 @@ void state_estimator_update(imu_data_t *data, float dt)
     // Subtract gyro bias
     float gx = data->gyro.gyro_x - s_gyro_x_bias;
     float gy = data->gyro.gyro_y - s_gyro_y_bias;
-    float gz = data->gyro.gyro_z - s_gyro_z_bias;
 
     // nieuwe hoek = oude hoek + snelheid × tijd
-    float gyro_pitch = orientation.pitch + data->gyro.gyro_y * dt;
-    float gyro_roll = orientation.roll + data->gyro.gyro_x * dt;
+    float gyro_pitch = orientation.pitch + gy * dt;
+    float gyro_roll = orientation.roll + gx * dt;
 
+    //clamp de gyro angles zodat er geen beschadiging is bij extreme waarden, dit kan gebeuren bij een val ofzo
+    
     // Accelerometer angle calculation
     // Dit berekent de hoek t.o.v. zwaartekracht
     float accel_pitch = compute_accel_pitch_deg(data);
@@ -120,6 +121,16 @@ void state_estimator_update(imu_data_t *data, float dt)
     orientation.roll =
         COMPLEMENTARY_ALPHA * gyro_roll +
         (1.0f - COMPLEMENTARY_ALPHA) * accel_roll;
+
+        // printf("[estimator] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f) est=(pitch=%.2f roll=%.2f)\n",
+        //        data->gyro.gyro_x,
+        //        data->gyro.gyro_y,
+        //        data->gyro.gyro_z,
+        //        data->accel.accel_x,
+        //        data->accel.accel_y,
+        //        data->accel.accel_z,
+        //        orientation.pitch,
+        //        orientation.roll);
 }
 
 // return de huidige geschatte orientatie: PID_controller heeft dit nodig
@@ -136,7 +147,6 @@ QueueHandle_t state_estimator_get_queue_handle(void)
 void state_estimator_task(void *arg)
 {
     (void)arg;
-    uint32_t trace_div = 0U;
     uint64_t last_time_us = esp_timer_get_time();
     while (1)
     {
@@ -195,14 +205,14 @@ void state_estimator_task(void *arg)
                 xQueueOverwrite(state_estimator_queue_handle, &current_orientation);
                 // printf("Orientation updated: pitch=%.2f, roll=%.2f\n", current_orientation.pitch, current_orientation.roll);
 
-                trace_div++;
-                if (trace_div >= 20U)
-                {
-                    printf("[estimate] pitch=%.2f roll=%.2f\n",
-                           current_orientation.pitch,
-                           current_orientation.roll);
-                    trace_div = 0U;
-                }
+                // trace_div++;
+                // if (trace_div >= 20U)
+                // {
+                //     printf("[estimate] pitch=%.2f roll=%.2f\n",
+                //            current_orientation.pitch,
+                //            current_orientation.roll);
+                //     trace_div = 0U;
+                // }
             }
         }
     }

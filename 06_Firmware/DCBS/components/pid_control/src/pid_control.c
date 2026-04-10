@@ -7,7 +7,7 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "state_estimator.h"
-
+#include "esp_timer.h"
 #define PID_TASK_STACK_SIZE 3072U
 #define PID_TASK_PRIORITY 9U
 #define PID_INPUT_TASK_PRIORITY 8U
@@ -271,14 +271,31 @@ void pid_control_task(void *arg)
             continue;
         }
 
+        uint64_t now_us = esp_timer_get_time();
+        static uint64_t last_time_us = 0;
+
+        if (last_time_us == 0)
+        {
+            last_time_us = now_us;
+        }
+
+        float dt = (now_us - last_time_us) / 1000000.0f;
+        last_time_us = now_us;
+
+        if (dt <= 0.0f || dt > 0.1f)
+        {
+            dt = 0.1f;
+        }
+        
+        
         pid_input_t in;
         if (xQueueReceive(pid_input_queue_handle, &in, pdMS_TO_TICKS(100)) == pdPASS)
         {
             pid_output_t out = {
                 .pitch_measurement = in.pitch_measurement,
                 .roll_measurement = in.roll_measurement,
-                .pitch_output = pid_update(&s_pitch_pid, s_pitch_setpoint_deg, in.pitch_measurement, PID_DT_SECONDS),
-                .roll_output = pid_update(&s_roll_pid, s_roll_setpoint_deg, in.roll_measurement, PID_DT_SECONDS),
+                .pitch_output = pid_update(&s_pitch_pid, s_pitch_setpoint_deg, in.pitch_measurement, dt),
+                .roll_output = pid_update(&s_roll_pid, s_roll_setpoint_deg, in.roll_measurement, dt),
             };
 
             if (pid_output_queue_handle != NULL)
@@ -290,17 +307,17 @@ void pid_control_task(void *arg)
                 xQueueOverwrite(s_pid_monitor_queue_handle, &out);
             }
 
-            log_div++;
-            if (log_div >= 20U)
-            {
-                printf("[pid] sp=%.2f meas=(%.2f, %.2f) out=(%.2f, %.2f)\n",
-                       s_pitch_setpoint_deg,
-                       out.pitch_measurement,
-                       out.roll_measurement,
-                       out.pitch_output,
-                       out.roll_output);
-                log_div = 0U;
-            }
+            // log_div++;
+            // if (log_div >= 20U)
+            // {
+            //     printf("[pid] sp=%.2f meas=(%.2f, %.2f) out=(%.2f, %.2f)\n",
+            //            s_pitch_setpoint_deg,
+            //            out.pitch_measurement,
+            //            out.roll_measurement,
+            //            out.pitch_output,
+            //            out.roll_output);
+            //     log_div = 0U;
+            // }
         }
     }
 }

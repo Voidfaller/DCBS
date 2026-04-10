@@ -166,7 +166,6 @@ void gyro_driver_task(void *arg)
     // initialize the driver
     esp_err_t err;
     (void)arg;
-    uint32_t trace_div = 0U;
 
     err = gyro_driver_init();
     if (err != ESP_OK)
@@ -187,7 +186,6 @@ void gyro_driver_task(void *arg)
     uint64_t perf_last_log_us = esp_timer_get_time();
     uint64_t perf_max_loop_us = 0;
     uint64_t perf_max_read_us = 0;
-    uint32_t perf_samples = 0;
     uint32_t perf_timeouts = 0;
     TickType_t last_error_log_tick = 0;
 
@@ -260,14 +258,14 @@ void gyro_driver_task(void *arg)
         if (gyro_queue_handle != NULL)
         {
             xQueueOverwrite(gyro_queue_handle, &data);
-            trace_div++;
-            if (trace_div >= 20U)
-            {
-                printf("[gyro] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
-                       data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
-                       data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
-                trace_div = 0U;
-            }
+            // trace_div++;
+            // if (trace_div >= 20U)
+            // {
+            //     printf("[gyro] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
+            //            data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
+            //            data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
+            //     trace_div = 0U;
+            // }
         }
 
         if (s_gyro_monitor_queue_handle != NULL)
@@ -275,27 +273,8 @@ void gyro_driver_task(void *arg)
             xQueueOverwrite(s_gyro_monitor_queue_handle, &data);
         }
 
-        uint64_t loop_us = esp_timer_get_time() - loop_start_us;
-        if (loop_us > perf_max_loop_us)
-        {
-            perf_max_loop_us = loop_us;
-        }
+     
 
-        perf_samples++;
-        uint64_t now_us = esp_timer_get_time();
-        if ((now_us - perf_last_log_us) >= GYRO_PERF_LOG_INTERVAL_US)
-        {
-            printf("GYRO PERF samples=%lu max_read_us=%llu max_loop_us=%llu timeouts=%lu\n",
-                   (unsigned long)perf_samples,
-                   (unsigned long long)perf_max_read_us,
-                   (unsigned long long)perf_max_loop_us,
-                   (unsigned long)perf_timeouts);
-            perf_last_log_us = now_us;
-            perf_max_read_us = 0;
-            perf_max_loop_us = 0;
-            perf_samples = 0;
-            perf_timeouts = 0;
-        }
         watchdog_feed(s_watchdog_handle);
         vTaskDelay(pdMS_TO_TICKS(GYRO_SAMPLE_PERIOD_MS));
     }
