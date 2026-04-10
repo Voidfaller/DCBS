@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include "watchdog_service.h"
 
+#define PITCH_SERVO_SENSITIVITY 13.90f 
+#define ROLL_SERVO_SENSITIVITY 13.90f  
+
 static watchdog_handle_t s_watchdog_handle = WATCHDOG_INVALID_HANDLE;
 static bool s_pitch_pid_bypass = false;
 static TaskHandle_t s_servo_task_handle = NULL;
@@ -130,7 +133,7 @@ void servo_task(void *arg)
     };
 
     QueueHandle_t orientation_queue = state_estimator_get_queue_handle();
-    QueueHandle_t gyro_monitor_queue = gyro_driver_get_monitor_queue_handle();
+    QueueHandle_t pid_queue = pid_control_get_queue_handle();
     if (orientation_queue != NULL)
     {
         printf("[test] state estimator queue is available\n");
@@ -171,7 +174,6 @@ void servo_task(void *arg)
         // pid control loop
         else
         {
-            
         }
 
         watchdog_feed(s_watchdog_handle);

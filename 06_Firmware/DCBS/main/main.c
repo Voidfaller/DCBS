@@ -8,7 +8,7 @@
 #include "pid_control.h"
 #include "servo_driver.h"
 #include "watchdog_service.h"
-#include "display_driver.h"
+// #include "display_driver.h"
 #include "esp_timer.h"
 
 void app_main(void)
@@ -81,12 +81,11 @@ void app_main(void)
     if (err != ESP_OK)
     {
         printf("Failed to start pid control: %s\n", esp_err_to_name(err));
-        watchdog_register("PID Control", 5);
         return;
     }
     printf("[startup] pid control ready\n");
 
-    err = servo_start_task(false);  // true = bypass PID, use state estimator directly
+    err = servo_start_task(true);  // true = bypass PID, use state estimator directly
     
     if (err != ESP_OK)
     {
@@ -98,13 +97,13 @@ void app_main(void)
 
     // // Use PID mode so configured setpoint drives the servo even when board is level.
 
-    err = display_driver_start();
-    if (err != ESP_OK)
-    {
-        printf("Failed to start display driver: %s\n", esp_err_to_name(err));
-        return;
-    }
-    printf("[startup] display driver ready\n");
+    // err = display_driver_start();
+    // if (err != ESP_OK)
+    // {
+    //     printf("Failed to start display driver: %s\n", esp_err_to_name(err));
+    //     return;
+    // }
+    // printf("[startup] display driver ready\n");
 
     // printf("[startup] system ready\n");
    
