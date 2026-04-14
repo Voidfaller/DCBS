@@ -1070,3 +1070,15 @@ esp_err_t display_driver_start(void)
         s_pid_ui_settings,
         sizeof(s_pid_ui_settings) / sizeof(s_pid_ui_settings[0]));
 }
+
+esp_err_t display_driver_prepare_sleep(void)
+{
+    if (!s_ui_task_ctx.running)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Turn panel off so it does not appear frozen when the MCU enters deep sleep.
+    ssd1306_send_cmd(&s_ui_task_ctx.display, 0xAE);
+    return ESP_OK;
+}

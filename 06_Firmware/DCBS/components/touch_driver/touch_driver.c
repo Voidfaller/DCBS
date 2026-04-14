@@ -20,15 +20,21 @@ esp_err_t touch_driver_init(void)
     }
 
     //init pin
-    err = touch_pad_config(TOUCH_PIN, 0);
+    err = touch_pad_config(TOUCH_PIN, TOUCH_THRESHOLD);
     if (err != ESP_OK)
     {
         return err;
     }
 
-    // software trigger mode
-    err = touch_pad_set_fsm_mode(TOUCH_FSM_MODE_SW);
+    // Timer FSM mode is required for touch wakeup from deep sleep.
+    err = touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
     if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    err = touch_pad_fsm_start();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
     {
         return err;
     }
@@ -44,12 +50,7 @@ esp_err_t touch_driver_read(touch_data_t *data)
     }
 
     uint16_t raw_value = 0;
-    esp_err_t err = touch_pad_sw_start();
-    if (err != ESP_OK)
-    {
-        return err;
-    }
-
+    esp_err_t err;
     err = touch_pad_read(TOUCH_PIN, &raw_value);
     if (err != ESP_OK)
     {
@@ -109,6 +110,7 @@ void touch_driver_task(void *pvParameters)
                 if (config_manager_set_current_setpoints(orientation.pitch, orientation.roll, true) == ESP_OK)
                 {
                     ESP_LOGI(TAG, "Captured! >Current setpoints: pitch=%.2f roll=%.2f", orientation.pitch, orientation.roll);
+                    sleep_timer_reset();
                 }
                 else
                 {
@@ -120,7 +122,7 @@ void touch_driver_task(void *pvParameters)
         }
         else
         {
-            ESP_LOGE(TAG,ignore "Failed to read touch data");
+            ESP_LOGE(TAG, "Failed to read touch data");
         }
 
         vTaskDelay(pdMS_TO_TICKS(TOUCH_POLL_MS));

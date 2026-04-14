@@ -38,4 +38,7 @@ typedef struct
 void servo_init(servo_t *servo);
 void servo_set_pwm(servo_t *servo, int pwm);
 void servo_sweep_test(servo_t *servo);
-esp_err_t servo_start_task(bool bypass_pid);
+void servo_set_pitch_pid_bypass(bool enabled);
+bool servo_get_pitch_pid_bypass(void);
+esp_err_t servo_start_task(servo_t *servo);
+esp_err_t servo_stabilizer_start_pitch(void);

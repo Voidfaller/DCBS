@@ -29,6 +29,9 @@
 #define SERVO_MAX_PULSE_US_LIMIT 2500.0f
 #define SERVO_MIN_EFFECTIVE_SPAN_US 1200.0f
 
+static void servo_rotate(servo_t *servo, float angle);
+static int angle_to_pulse_us(servo_t *servo, float angle);
+
 static TaskHandle_t s_pitch_servo_bridge_task = NULL;
 static volatile bool s_pitch_servo_pid_bypass = false;
 static servo_t s_pitch_servo = {

@@ -82,3 +82,4 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
                                 size_t setting_count);
 
 esp_err_t display_driver_start(void);
+esp_err_t display_driver_prepare_sleep(void);
