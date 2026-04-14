@@ -44,6 +44,7 @@ typedef struct
     bool running;
     bool config_bound;
     app_config_t last_config;
+    pid_output_t last_pid_output;
     bool has_pid_output;
     imu_data_t last_imu_data;
     bool has_imu_data;
@@ -51,88 +52,86 @@ typedef struct
 
 static display_ui_task_ctx_t s_ui_task_ctx;
 static int32_t s_ui_pid_setpoint = 0;
-static int32_t s_ui_pid_kp = 8;
-    display_ui_task_ctx_t *ctx = (display_ui_task_ctx_t *)arg;
-    QueueHandle_t imu_queue = NULL;
+static int32_t s_ui_pid_kp = 25;
+static int32_t s_ui_pid_ki = 2;
+static int32_t s_ui_pid_kd = 8;
+static int32_t s_ui_servo_mode = 0;
+static const display_ui_setting_t s_pid_ui_settings[] = {
+    DISPLAY_UI_SETTING("SETPOINT", &s_ui_pid_setpoint, -30, 30, 1),
+    DISPLAY_UI_SETTING("KP", &s_ui_pid_kp, 0, 100, 1),
+    DISPLAY_UI_SETTING("KI", &s_ui_pid_ki, 0, 100, 1),
+    DISPLAY_UI_SETTING("KD", &s_ui_pid_kd, 0, 100, 1),
+    DISPLAY_UI_SETTING("Bypass PID", &s_ui_servo_mode, 0, 1, 1),
+};
 
-    ui_buttons_init();
-    display_ui_init(&ctx->display, ctx->settings, ctx->setting_count);
-
-    if (ctx->config_bound)
+static void ui_apply_config_to_settings(const display_ui_task_ctx_t *ctx, const app_config_t *cfg)
+{
+    if (ctx == NULL || cfg == NULL || ctx->settings == NULL)
     {
-        config_manager_get_copy(&ctx->last_config);
-        ui_apply_config_to_settings(ctx, &ctx->last_config);
+        return;
     }
 
-    while (ctx->running)
+    if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
     {
-        if (ctx->config_bound)
+        *ctx->settings[0].value = (int32_t)lroundf(cfg->pitch_setpoint_deg);
+    }
+    if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
+    {
+        *ctx->settings[1].value = cfg->pid_kp;
+    }
+    if (ctx->setting_count > 2 && ctx->settings[2].value != NULL)
+    {
+        *ctx->settings[2].value = cfg->pid_ki;
+    }
+    if (ctx->setting_count > 3 && ctx->settings[3].value != NULL)
+    {
+        *ctx->settings[3].value = cfg->pid_kd;
+    }
+}
+
+static app_config_t ui_collect_config_from_settings(const display_ui_task_ctx_t *ctx, const app_config_t *base_cfg)
+{
+    app_config_t cfg = *base_cfg;
+
+    if (ctx->settings != NULL)
+    {
+        if (ctx->setting_count > 0 && ctx->settings[0].value != NULL)
         {
-            const app_config_t *cfg_now = config_manager_get();
-            if (cfg_now != NULL && memcmp(cfg_now, &ctx->last_config, sizeof(app_config_t)) != 0)
-            {
-                ctx->last_config = *cfg_now;
-                ui_apply_config_to_settings(ctx, &ctx->last_config);
-            }
+            cfg.pid_setpoint = *ctx->settings[0].value;
+            cfg.pitch_setpoint_deg = (float)(*ctx->settings[0].value);
         }
-
-        if (imu_queue == NULL)
+        if (ctx->setting_count > 1 && ctx->settings[1].value != NULL)
         {
-            imu_queue = gyro_driver_get_monitor_queue_handle();
+            cfg.pid_kp = *ctx->settings[1].value;
         }
-
-        if (imu_queue != NULL)
+        if (ctx->setting_count > 2 && ctx->settings[2].value != NULL)
         {
-            imu_data_t imu_latest;
-            if (xQueuePeek(imu_queue, &imu_latest, 0) == pdPASS)
-            {
-                ctx->last_imu_data = imu_latest;
-                ctx->has_imu_data = true;
-            }
+            cfg.pid_ki = *ctx->settings[2].value;
         }
-
-        ui_button_events_t events = ui_read_button_events();
-        int32_t setpoint = ctx->config_bound ? ctx->last_config.pid_setpoint : 0;
-        int32_t gyro_x = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_x) : 0;
-        int32_t gyro_y = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_y) : 0;
-        int32_t gyro_z = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_z) : 0;
-
-        display_ui_data_t ui_data = {
-            .pid_setpoint = setpoint,
-            .pid_measured = 0,
-            .pid_output = 0,
-            .gyro_x_dps = gyro_x,
-            .gyro_y_dps = gyro_y,
-            .gyro_z_dps = gyro_z,
-            .est_pitch_deg = 0,
-            .est_roll_deg = 0,
-            .servo_pwm_us = 1500,
-            .uptime_s = (uint32_t)(esp_timer_get_time() / 1000000ULL),
-            .free_heap_bytes = heap_caps_get_free_size(MALLOC_CAP_8BIT),
-            .frame_hz = (uint32_t)(1000 / UI_TASK_FRAME_MS),
-        };
-
-        display_ui_handle_input(&ctx->display, events.up, events.down, events.select, events.back);
-        display_ui_render(&ctx->display, &ui_data);
-        display_flush(&ctx->display);
-
-        if (ctx->config_bound)
+        if (ctx->setting_count > 3 && ctx->settings[3].value != NULL)
         {
-            app_config_t pending_cfg = ui_collect_config_from_settings(ctx, &ctx->last_config);
-            if (memcmp(&pending_cfg, &ctx->last_config, sizeof(app_config_t)) != 0)
-            {
-                if (config_manager_update(&pending_cfg, true) == ESP_OK)
-                {
-                    ctx->last_config = pending_cfg;
-                }
-            }
+            cfg.pid_kd = *ctx->settings[3].value;
         }
-
-        ctx->frame++;
-        vTaskDelay(pdMS_TO_TICKS(UI_TASK_FRAME_MS));
     }
 
-    vTaskDelete(NULL);
+    return cfg;
+}
+
+static void ui_buttons_init(void)
+{
+    gpio_config_t buttons_cfg = {
+        .pin_bit_mask = (1ULL << UI_BTN_UP_GPIO) |
+                        (1ULL << UI_BTN_DOWN_GPIO) |
+                        (1ULL << UI_BTN_SELECT_GPIO) |
+                        (1ULL << UI_BTN_BACK_GPIO),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    ESP_ERROR_CHECK(gpio_config(&buttons_cfg));
+}
 
 static ui_button_events_t ui_read_button_events(void)
 {
@@ -351,8 +350,8 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
     int graph_y1 = 10;
     int graph_w = graph_x1 - graph_x0;
     int graph_mid = (graph_y0 + graph_y1) / 2;
-    int32_t angle_range_deg = 90;
-    int32_t output_range = 90;
+    int32_t angle_range_deg = 30;
+    int32_t output_range = 30;
     int32_t setpoint_clamped = clamp_i32(pid_setpoint, -angle_range_deg, angle_range_deg);
     int32_t measured_clamped = clamp_i32(pid_measured, -angle_range_deg, angle_range_deg);
     int32_t output_clamped = clamp_i32(pid_output, -output_range, output_range);
@@ -362,7 +361,6 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
     display_drawRect(display, (graph_x0 + graph_x1) / 2, (graph_y0 + graph_y1) / 2, graph_w, graph_y1 - graph_y0, 1);
 
     display->pid_history[display->pid_history_head] = (int16_t)measured_clamped;
-    display->pid_output_history[display->pid_history_head] = (int16_t)output_clamped;
     display->pid_history_head = (uint8_t)((display->pid_history_head + 1U) % UI_HISTORY_LEN);
 
     int setpoint_y = graph_mid - (int)((setpoint_clamped * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg));
@@ -384,22 +382,6 @@ static void ui_draw_pid_screen(display_t *display, int32_t pid_setpoint, int32_t
         int idx1 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i) % UI_HISTORY_LEN);
         int y0 = graph_mid - (display->pid_history[idx0] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
         int y1 = graph_mid - (display->pid_history[idx1] * (graph_y1 - graph_y0 - 2)) / (2 * angle_range_deg);
-        int x0 = graph_x0 + 1 + (i - 1) * 2;
-        int x1 = graph_x0 + 1 + i * 2;
-        display_drawLine(display, x0, y0, x1, y1, 1);
-    }
-
-    for (int i = 1; i < 46; i++)
-    {
-        if ((i % 2) == 0)
-        {
-            continue;
-        }
-
-        int idx0 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i - 1) % UI_HISTORY_LEN);
-        int idx1 = (int)((display->pid_history_head + UI_HISTORY_LEN - 46 + i) % UI_HISTORY_LEN);
-        int y0 = graph_mid - (display->pid_output_history[idx0] * (graph_y1 - graph_y0 - 2)) / (2 * output_range);
-        int y1 = graph_mid - (display->pid_output_history[idx1] * (graph_y1 - graph_y0 - 2)) / (2 * output_range);
         int x0 = graph_x0 + 1 + (i - 1) * 2;
         int x1 = graph_x0 + 1 + i * 2;
         display_drawLine(display, x0, y0, x1, y1, 1);
@@ -654,7 +636,6 @@ esp_err_t display_init(display_t *display, uint8_t addr, int width, int height)
     // Initialize shadow RAM
     memset(display->shadow_ram, 0x00, sizeof(display->shadow_ram));
     memset(display->pid_history, 0x00, sizeof(display->pid_history));
-    memset(display->pid_output_history, 0x00, sizeof(display->pid_output_history));
     display->pid_history_head = 0;
     display->settings = NULL;
     display->setting_count = 0;
@@ -921,11 +902,17 @@ static void display_ui_task_run(void *arg)
 
         if (pid_monitor_queue == NULL)
         {
+            pid_monitor_queue = pid_control_get_monitor_queue_handle();
         }
 
         if (pid_monitor_queue != NULL)
         {
-          
+            pid_output_t latest;
+            if (xQueuePeek(pid_monitor_queue, &latest, 0) == pdPASS)
+            {
+                ctx->last_pid_output = latest;
+                ctx->has_pid_output = true;
+            }
         }
 
         if (imu_queue == NULL)
@@ -943,11 +930,38 @@ static void display_ui_task_run(void *arg)
             }
         }
 
-      
-       
+        ui_button_events_t events = ui_read_button_events();
+        int32_t setpoint = (ctx->config_bound) ? (int32_t)lroundf(ctx->last_config.pitch_setpoint_deg) : 0;
+        int32_t measured = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
+        int32_t output = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_output) : 0;
+        int32_t est_pitch = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.pitch_measurement) : 0;
+        int32_t est_roll = ctx->has_pid_output ? (int32_t)lroundf(ctx->last_pid_output.roll_measurement) : 0;
+        int32_t gyro_x = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_x) : 0;
+        int32_t gyro_y = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_y) : 0;
+        int32_t gyro_z = ctx->has_imu_data ? (int32_t)lroundf(ctx->last_imu_data.gyro.gyro_z) : 0;
+        int32_t servo_pwm_us = 1500 + (output * 5);
+        display_ui_data_t ui_data = {
+            .pid_setpoint = setpoint,
+            .pid_measured = measured,
+            .pid_output = output,
+            .gyro_x_dps = gyro_x,
+            .gyro_y_dps = gyro_y,
+            .gyro_z_dps = gyro_z,
+            .est_pitch_deg = est_pitch,
+            .est_roll_deg = est_roll,
+            .servo_pwm_us = servo_pwm_us,
+            .uptime_s = (uint32_t)(esp_timer_get_time() / 1000000ULL),
+            .free_heap_bytes = heap_caps_get_free_size(MALLOC_CAP_8BIT),
+            .frame_hz = (uint32_t)(1000 / UI_TASK_FRAME_MS),
+        };
 
+        display_ui_handle_input(&ctx->display, events.up, events.down, events.select, events.back);
 
-       
+        bool desired_bypass = (s_ui_servo_mode != 0);
+        if (servo_get_pitch_pid_bypass() != desired_bypass)
+        {
+            servo_set_pitch_pid_bypass(desired_bypass);
+        }
 
         display_ui_render(&ctx->display, &ui_data);
         display_flush(&ctx->display);
@@ -960,7 +974,10 @@ static void display_ui_task_run(void *arg)
                 if (config_manager_update(&pending_cfg, true) == ESP_OK)
                 {
                     ctx->last_config = pending_cfg;
-                  
+                    if (pid_control_reload_settings() != ESP_OK)
+                    {
+                        printf("PID settings reload failed\n");
+                    }
                 }
             }
         }
@@ -995,7 +1012,7 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
     s_ui_task_ctx.frame = 0;
     s_ui_task_ctx.running = true;
     s_ui_task_ctx.config_bound = config_manager_is_initialized();
-    s_ui_servo_mode = 1;
+    s_ui_servo_mode = servo_get_pitch_pid_bypass() ? 1 : 0;
 
     if (s_ui_task_ctx.config_bound)
     {

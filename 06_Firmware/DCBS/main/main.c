@@ -7,40 +7,21 @@
 #include "state_estimator.h"
 #include "pid_control.h"
 #include "servo_driver.h"
+#include "touch_driver.h"
 #include "watchdog_service.h"
-// #include "display_driver.h"
-#include "esp_timer.h"
+#include "display_driver.h"
+
+#define DISABLE_TASK_WDT_TEMPORARY 1
 
 void app_main(void)
 {
 
-    // // Initialize the watchdog with a timeout of 5 seconds
-    // watchdog_init(5);
+    // Initialize the watchdog with a timeout of 5 seconds
+    watchdog_init(5);
     esp_err_t err;
 
-    // printf("[startup] app_main begin\n");
-
     // Initialize the config manager first to ensure settings are available for other components
-    err = config_manager_init();
-    if (err != ESP_OK)
-    {
-        printf("[startup] config_manager_init failed: %s\n", esp_err_to_name(err));
-        return;
-    }
-    printf("[startup] config manager ready\n");
-
-    // Boot test profile: force a visible movement command and keep SG90 in a safe pulse range.
-    app_config_t cfg;
-    config_manager_get_copy(&cfg);
-    cfg.pid_setpoint = 15;
-    cfg.servo_min_us = 1000;
-    cfg.servo_max_us = 2000;
-    err = config_manager_update(&cfg, false);
-    if (err != ESP_OK)
-    {
-        printf("[startup] config_manager_update failed: %s\n", esp_err_to_name(err));
-        return;
-    }
+    config_manager_init();
 
     // Initialize the I2C wrapper before any components that depend on I2C
     i2c_wrapper_config_t i2c_cfg = {
@@ -59,7 +40,6 @@ void app_main(void)
         printf("I2C wrapper init failed: %s\n", esp_err_to_name(err));
         return;
     }
-    printf("[startup] i2c wrapper ready\n");
 
     err = gyro_driver_start();
     if (err != ESP_OK)
@@ -67,7 +47,6 @@ void app_main(void)
         printf("Failed to start gyro driver: %s\n", esp_err_to_name(err));
         return;
     }
-    printf("[startup] gyro driver ready\n");
 
     err = state_estimator_start();
     if (err != ESP_OK)
@@ -75,41 +54,41 @@ void app_main(void)
         printf("Failed to start state estimator: %s\n", esp_err_to_name(err));
         return;
     }
-    printf("[startup] state estimator ready\n");
 
     err = pid_control_start();
     if (err != ESP_OK)
     {
         printf("Failed to start pid control: %s\n", esp_err_to_name(err));
+        watchdog_register("PID Control", 5);
         return;
     }
-    printf("[startup] pid control ready\n");
 
-    err = servo_start_task(true);  // true = bypass PID, use state estimator directly
-    
+    err = servo_stabilizer_start_pitch();
     if (err != ESP_OK)
     {
         printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
-        // watchdog_register("Servo", 5);
+        watchdog_register("Pitch Servo", 5);
         return;
     }
-    printf("[startup]  servo's ready\n");
 
-    // // Use PID mode so configured setpoint drives the servo even when board is level.
+    err = touch_driver_start();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start touch driver: %s\n", esp_err_to_name(err));
+        return;
+    }
 
-    // err = display_driver_start();
-    // if (err != ESP_OK)
-    // {
-    //     printf("Failed to start display driver: %s\n", esp_err_to_name(err));
-    //     return;
-    // }
-    // printf("[startup] display driver ready\n");
+    // Set true to bypass PID and drive servo directly from state_estimator pitch.
+    servo_set_pitch_pid_bypass(false);
 
-    // printf("[startup] system ready\n");
-   
+    err = display_driver_start();
+    if (err != ESP_OK)
+    {
+        printf("Display driver not available\n");
+    }
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

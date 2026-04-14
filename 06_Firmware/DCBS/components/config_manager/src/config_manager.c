@@ -26,6 +26,8 @@ static const app_config_t k_default_config = {
 	.servo_min_us = 500,
 	.servo_max_us = 2500,
 	.ui_frame_ms = 50,
+	.pitch_setpoint_deg = 0.0f,
+	.roll_setpoint_deg = 0.0f,
 };
 
 static nvs_handle_t s_nvs_handle = 0;
@@ -151,6 +153,38 @@ void config_manager_get_copy(app_config_t *out_config)
 		return;
 	}
 	*out_config = s_config;
+}
+// NEW: Get current setpoints and also set new setpoints in the config manager on touch events 
+esp_err_t config_manager_get_current_setpoints(float *pitch_setpoint_deg, float *roll_setpoint_deg)
+{
+	if (pitch_setpoint_deg == NULL || roll_setpoint_deg == NULL)
+	{
+		return ESP_ERR_INVALID_ARG;
+	}
+
+	*pitch_setpoint_deg = s_config.pitch_setpoint_deg;
+	*roll_setpoint_deg = s_config.roll_setpoint_deg;
+	return ESP_OK;
+}
+
+esp_err_t config_manager_set_current_setpoints(float pitch_setpoint_deg,
+								   float roll_setpoint_deg,
+								   bool persist_immediately)
+{
+	if (!s_initialized)
+	{
+		return ESP_ERR_INVALID_STATE;
+	}
+
+	s_config.pitch_setpoint_deg = pitch_setpoint_deg;
+	s_config.roll_setpoint_deg = roll_setpoint_deg;
+
+	if (persist_immediately)
+	{
+		return config_manager_write_blob();
+	}
+
+	return ESP_OK;
 }
 
 esp_err_t config_manager_save(void)

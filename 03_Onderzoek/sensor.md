@@ -1,10 +1,10 @@
-# Sensor Research – Dynamic Cup Balancing System (DBBS)
+# Sensor Research – Dynamic Comfort Ventilation System (DCVS)
 
 ## 1. Introduction
 
 The Dynamic cup balancing System (DDBS) is developed by a team of five students as part of the TINLab Embedded Systems course.
 
-The DBBS requires a sensor capable of measuring orientation (Pitch and Roll) in real time. To satisfy the project requirements, the sensor must support I2C or SPI communication and provide data at a rate suitable for a PID control loop (at least 50-100Hz).
+The system aims to regulate thermal comfort by controlling a fan based on environmental and physiological sensor input. To enable adaptive and intelligent control, reliable and accurate sensors are required.
 
 This document evaluates potential sensor solutions and justifies the final selection based on:
 
@@ -41,32 +41,27 @@ Sensor selection must therefore balance performance and cost.
 
 The following requirements must be fulfilled by the chosen sensors:
 
-- Angle measurement in at least 1 axis (preferably 2 axes)
-- Resolution better than 1°
+- Operating temperature range: 15°C – 35°C.
+- Accuracy: ±1.0°C or better for ambient sensing
 - Compatible with 3.3V microcontrollers (e.g., STM32)
 - Support I2C and SPI communication
 - Low power consumption
-- Update rate ≥ 50 Hz (for smooth servo control)
+- Sampling frequency ≥ 1 Hz
 - Suitable for integration in an RTOS-based embedded system
 
 ---
 
-# 4. Technology Selection
-
-For dynamic stabilization, a 6-axis IMU is the industry standard. It combines:
-- Accelerometer: Measures gravity to determine the "down" direction (static accuracy).
-- Gyroscope: Measures angular velocity (dynamic accuracy during movement).
+# 4. Ambient Environment Sensor Analysis
 
 ## 4.1 Option 1 – SW520D Tilt Switch
 
-**Type:** Digital tilt switch
-**Voltage:** 3,3V- 5V
-**Interface:** Digital output (HIGH/LOW) 
+**Type:** Digital temperature and humidity sensor  
+**Accuracy:** ±0.5°C (temperature)  
+**Interface:** Proprietary single-wire protocol  
 
 ### Advantages
 - Low cost
 - Easy to use
-- No configuration required
 
 ### Disadvantages
 - Only detects tilt threshold.
@@ -152,6 +147,10 @@ While technically superior, the BNO055 exceeds the project requirements and budg
 
 ---
 
-# 7. Conclusion
+# 8. Conclusion
 
-the MPU6050 is the best fit for our requirements. It allows for I2C communication, provides the necessary data for a PID controller, and supports hardware interrupts for waking the system from sleep mode.
+The BME280 and MLX90614 sensors provide a balanced combination of environmental and physiological monitoring capabilities.
+
+By including humidity measurement through the BME280, the DCVS system can implement more advanced comfort modeling instead of relying solely on temperature.
+
+Both sensors support I2C communication, ensuring compatibility with the embedded architecture and fulfilling project requirements.
