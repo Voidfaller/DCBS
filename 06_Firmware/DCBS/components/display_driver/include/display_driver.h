@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "esp_err.h"
-#include "driver/i2c_master.h"
-
 typedef enum
 {
     DISPLAY_UI_SCREEN_PID = 0,
@@ -49,7 +47,7 @@ typedef struct
     int SCL_GPIO;
     int SDA_GPIO;
     uint8_t addr;
-    i2c_master_dev_handle_t dev_handle;
+    void *dev_handle;
     int width;
     int height;
     uint8_t shadow_ram[1024];  // Shadow buffer: 8 pages x 128 columns for 128x64 displays

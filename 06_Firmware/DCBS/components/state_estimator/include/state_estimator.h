@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "gyro_driver.h"
 #include "freertos/FreeRTOS.h"
 
@@ -19,6 +21,8 @@ void state_estimator_update(
 
 orientation_t state_estimator_get_orientation(void);
 QueueHandle_t state_estimator_get_queue_handle(void);
+bool state_estimator_is_calibrated(void);
+void state_estimator_recalibrate(void);
 
 void state_estimator_task(void *arg);
 esp_err_t state_estimator_start(void);

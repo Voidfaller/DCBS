@@ -8,7 +8,7 @@
 #include "pid_control.h"
 #include "servo_driver.h"
 #include "watchdog_service.h"
-// #include "display_driver.h"
+#include "display_driver.h"
 #include "esp_timer.h"
 
 void app_main(void)
@@ -53,7 +53,7 @@ void app_main(void)
         .default_dev_speed_hz = 400000,
     };
 
-    err = i2c_wrapper_init(&i2c_cfg);
+    err = i2c_wrapper_init(&i2c_cfg); // initialize the I2C wrapper with the specified config
     if (err != ESP_OK)
     {
         printf("I2C wrapper init failed: %s\n", esp_err_to_name(err));
@@ -61,7 +61,15 @@ void app_main(void)
     }
     printf("[startup] i2c wrapper ready\n");
 
-    err = gyro_driver_start();
+    err = display_driver_start(); // start the display driver task
+    if (err != ESP_OK)
+    {
+        printf("Failed to start display driver: %s\n", esp_err_to_name(err));
+        return;
+    }
+    printf("[startup] display driver ready\n");
+
+    err = gyro_driver_start(); // start the gyro driver task
     if (err != ESP_OK)
     {
         printf("Failed to start gyro driver: %s\n", esp_err_to_name(err));
@@ -69,7 +77,7 @@ void app_main(void)
     }
     printf("[startup] gyro driver ready\n");
 
-    err = state_estimator_start();
+    err = state_estimator_start(); // start the state estimator task
     if (err != ESP_OK)
     {
         printf("Failed to start state estimator: %s\n", esp_err_to_name(err));
@@ -77,7 +85,7 @@ void app_main(void)
     }
     printf("[startup] state estimator ready\n");
 
-    err = pid_control_start();
+    err = pid_control_start(); // start the PID control task 
     if (err != ESP_OK)
     {
         printf("Failed to start pid control: %s\n", esp_err_to_name(err));
@@ -85,8 +93,8 @@ void app_main(void)
     }
     printf("[startup] pid control ready\n");
 
-    err = servo_start_task(true);  // true = bypass PID, use state estimator directly
-    
+    err = servo_start_task(false); // true = bypass PID, use state estimator directly
+
     if (err != ESP_OK)
     {
         printf("Failed to start pitch servo control: %s\n", esp_err_to_name(err));
@@ -97,19 +105,10 @@ void app_main(void)
 
     // // Use PID mode so configured setpoint drives the servo even when board is level.
 
-    // err = display_driver_start();
-    // if (err != ESP_OK)
-    // {
-    //     printf("Failed to start display driver: %s\n", esp_err_to_name(err));
-    //     return;
-    // }
-    // printf("[startup] display driver ready\n");
-
     // printf("[startup] system ready\n");
-   
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1000)); 
     }
 }

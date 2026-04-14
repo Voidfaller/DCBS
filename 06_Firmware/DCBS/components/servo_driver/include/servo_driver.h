@@ -36,6 +36,6 @@ typedef struct
 
 //functions
 void servo_init(servo_t *servo);
-void servo_set_pwm(servo_t *servo, int pwm);
+void servo_set_pwm(servo_t *servo, int pwm, int correction);
 void servo_sweep_test(servo_t *servo);
 esp_err_t servo_start_task(bool bypass_pid);
