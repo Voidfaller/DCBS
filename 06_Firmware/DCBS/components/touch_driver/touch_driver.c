@@ -6,7 +6,9 @@
 #include "esp_log.h"
 #include "config_manager.h"
 #include "state_estimator.h"
+#include "energy_manager.h"
 
+static energy_handle_t touch_handle;
 static const char *TAG = "TOUCH_DRIVER"; //logging tag
 static TaskHandle_t s_touch_task_handle = NULL;
 
@@ -86,6 +88,7 @@ esp_err_t touch_driver_start(void)
     }
 
     return ESP_OK;
+    touch_handle = energy_manager_register("touch");
 }
 
 //FreeRTOS task to continuously read touch data and log the event.
@@ -110,7 +113,7 @@ void touch_driver_task(void *pvParameters)
                 if (config_manager_set_current_setpoints(orientation.pitch, orientation.roll, true) == ESP_OK)
                 {
                     ESP_LOGI(TAG, "Captured! >Current setpoints: pitch=%.2f roll=%.2f", orientation.pitch, orientation.roll);
-                    sleep_timer_reset();
+                    energy_manager_feed(touch_handle);
                 }
                 else
                 {
