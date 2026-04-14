@@ -6,9 +6,50 @@
 #include "esp_log.h"
 #include "config_manager.h"
 #include "state_estimator.h"
+#include "sleep_module.h"
 
 static const char *TAG = "TOUCH_DRIVER"; //logging tag
 static TaskHandle_t s_touch_task_handle = NULL;
+static uint16_t s_touch_threshold = TOUCH_THRESHOLD;
+
+static uint16_t touch_driver_calibrate_threshold(void)
+{
+    uint32_t sum = 0;
+    int samples = 8;
+    int valid = 0;
+
+    for (int i = 0; i < samples; i++)
+    {
+        if (touch_pad_sw_start() != ESP_OK)
+        {
+            vTaskDelay(pdMS_TO_TICKS(20));
+            continue;
+        }
+
+        uint16_t raw = 0;
+        if (touch_pad_read(TOUCH_PIN, &raw) == ESP_OK && raw > 0)
+        {
+            sum += raw;
+            valid++;
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+
+    if (valid == 0)
+    {
+        return TOUCH_THRESHOLD;
+    }
+
+    uint16_t baseline = (uint16_t)(sum / (uint32_t)valid);
+    uint16_t dynamic_threshold = (uint16_t)((baseline * 70U) / 100U);
+
+    if (dynamic_threshold < 20U)
+    {
+        dynamic_threshold = 20U;
+    }
+
+    return dynamic_threshold;
+}
 
 
 esp_err_t touch_driver_init(void)
@@ -19,25 +60,29 @@ esp_err_t touch_driver_init(void)
         return err;
     }
 
-    //init pin
-    err = touch_pad_config(TOUCH_PIN, TOUCH_THRESHOLD);
+    // init pin, then calibrate runtime/deep-sleep threshold for this board.
+    err = touch_pad_config(TOUCH_PIN, 0);
     if (err != ESP_OK)
     {
         return err;
     }
 
-    // Timer FSM mode is required for touch wakeup from deep sleep.
-    err = touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+    // Use software-triggered measurements while the app is running.
+    err = touch_pad_set_fsm_mode(TOUCH_FSM_MODE_SW);
     if (err != ESP_OK)
     {
         return err;
     }
 
-    err = touch_pad_fsm_start();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+    s_touch_threshold = touch_driver_calibrate_threshold();
+    err = touch_pad_set_thresh(TOUCH_PIN, s_touch_threshold);
+    if (err != ESP_OK)
     {
         return err;
     }
+
+    ESP_LOGI(TAG, "Touch threshold configured: %u", (unsigned)s_touch_threshold);
+
     return ESP_OK;
 }
 
@@ -51,6 +96,12 @@ esp_err_t touch_driver_read(touch_data_t *data)
 
     uint16_t raw_value = 0;
     esp_err_t err;
+    err = touch_pad_sw_start();
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
     err = touch_pad_read(TOUCH_PIN, &raw_value);
     if (err != ESP_OK)
     {
@@ -58,7 +109,7 @@ esp_err_t touch_driver_read(touch_data_t *data)
     }
 // determine touch status based on threshold
     data->touch_value = raw_value;
-    data->touched = raw_value < TOUCH_THRESHOLD;
+    data->touched = raw_value < s_touch_threshold;
 
     return ESP_OK;
 }
@@ -99,7 +150,8 @@ void touch_driver_task(void *pvParameters)
 
     while (1)
     {
-        if (touch_driver_read(&data) == ESP_OK)
+        esp_err_t read_err = touch_driver_read(&data);
+        if (read_err == ESP_OK)
         {
         // Log only on touch events, not on every read
             if (data.touched && !was_touched)
@@ -122,7 +174,7 @@ void touch_driver_task(void *pvParameters)
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to read touch data");
+            ESP_LOGE(TAG, "Failed to read touch data: %s", esp_err_to_name(read_err));
         }
 
         vTaskDelay(pdMS_TO_TICKS(TOUCH_POLL_MS));

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "esp_task_wdt.h"
+#include <stdint.h>
 
 typedef int sleep_timer_handle_t;
 

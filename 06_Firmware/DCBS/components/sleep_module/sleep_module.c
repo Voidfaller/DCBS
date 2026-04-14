@@ -1,91 +1,151 @@
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "sleep_module.h"
+#include "display_driver.h"
+#include "driver/touch_pad.h"
+#include "esp_log.h"
+#include "esp_sleep.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_task_wdt.h"
-#include "driver/rtc_io.h"
 
-#define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
-#define USE_EXT0_WAKEUP 0                        // 1 = EXT0 wakeup, 0 = EXT1 wakeup
-#define WAKEUP_GPIO_1 GPIO_NUM_32                  // Only RTC IO are allowed - ESP32 Pin example
-#define WAKEUP_GPIO_2 GPIO_NUM_33
 #define MAX_SLEEP_TIMER_TASKS 2
-#define TIMEOUT_MS 30000
+#define DEFAULT_TIMEOUT_MS 30000U
 
 typedef struct
 {
-    const char name;
-    uint32_t time_until_sleep;
+    const char *name;
+    uint32_t time_until_sleep_ms;
     TickType_t last_awake_call;
     bool active;
-} sleep_timer_entry;
+} sleep_timer_entry_t;
 
-static sleep_timer_entry_t tasks[MAX_SLEEP_TIMER_TASKS];
-static int task_count = 0;
+static sleep_timer_entry_t s_tasks[MAX_SLEEP_TIMER_TASKS];
+static int s_task_count = 0;
+static TaskHandle_t s_sleep_task_handle = NULL;
+static uint32_t s_default_timeout_ms = DEFAULT_TIMEOUT_MS;
+static const char *TAG = "SLEEP_MODULE";
+
+#define WAKE_TOUCH_PAD TOUCH_PAD_NUM0
+
+static void sleep_timer_arm_touch_wakeup(void)
+{
+    const uint16_t touch_bit = (uint16_t)(1U << (uint32_t)WAKE_TOUCH_PAD);
+
+    (void)touch_pad_set_trigger_mode(TOUCH_TRIGGER_BELOW);
+    (void)touch_pad_set_trigger_source(TOUCH_TRIGGER_SOURCE_SET1);
+    (void)touch_pad_set_group_mask(touch_bit, 0, touch_bit);
+    (void)touch_pad_clear_status();
+    (void)touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+}
+
+static void sleep_timer_mark_awake_all(void)
+{
+    TickType_t now = xTaskGetTickCount();
+
+    for (int i = 0; i < s_task_count; i++)
+    {
+        if (s_tasks[i].active)
+        {
+            s_tasks[i].last_awake_call = now;
+        }
+    }
+}
+
+static bool sleep_timer_should_sleep(TickType_t now)
+{
+    for (int i = 0; i < s_task_count; i++)
+    {
+        if (!s_tasks[i].active)
+        {
+            continue;
+        }
+
+        uint32_t elapsed_ms = (uint32_t)((now - s_tasks[i].last_awake_call) * portTICK_PERIOD_MS);
+        if (elapsed_ms >= s_tasks[i].time_until_sleep_ms)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void sleep_timer_configure_wakeup(void)
+{
+    esp_err_t err = esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to keep RTC peripheral domain ON for touch wake: %s", esp_err_to_name(err));
+    }
+
+    (void)esp_sleep_enable_touchpad_wakeup();
+}
 
 sleep_timer_handle_t sleep_timer_register(const char *name, uint32_t stay_awake_sec)
 {
-    if (task_count >= SLEEP_TIMER_TASKS)
+    if (s_task_count >= MAX_SLEEP_TIMER_TASKS)
     {
-        return -1; // No more space for new tasks
+        return -1;
     }
 
-    tasks[task_count].name = name;
-    tasks[task_count].time_until_sleep = stay_awake_sec * 1000;
-    tasks[task_count].last_awake_call = xTaskGetTickCount();
-    tasks[task_count].active = true;
+    s_tasks[s_task_count].name = name;
+    s_tasks[s_task_count].time_until_sleep_ms = stay_awake_sec * 1000U;
+    s_tasks[s_task_count].last_awake_call = xTaskGetTickCount();
+    s_tasks[s_task_count].active = true;
 
-    return task_count++; // Return the handle and increment count
+    return s_task_count++;
 }
 
-void sleep_timer_reset()
+void sleep_timer_reset(void)
 {
-    tasks[1].last_reset = xTaskGetTickCount();
-    tasks[2].last_reset = xTaskGetTickCount();
+    sleep_timer_mark_awake_all();
 }
-
 
 void sleep_timer_task(void *arg)
 {
-    esp_task_wdt_add(NULL); // Add the sleep timer task
-    while(1){
+    (void)arg;
+
+    while (1)
+    {
         TickType_t now = xTaskGetTickCount();
-        for (int i = 0; i < task_count; i++){
-            uint32_t elapsed = (now - timer.last_awake_call) * portTICK_PERIOD_MS;
-            if (elapsed > sleep_timer.time_until_sleep){
-                esp_deep_sleep_start();
-            }
+        if (sleep_timer_should_sleep(now))
+        {
+            ESP_LOGW(TAG, "Inactivity timeout reached, entering deep sleep now");
+            sleep_timer_arm_touch_wakeup();
+            (void)display_driver_prepare_sleep();
+            vTaskDelay(pdMS_TO_TICKS(20));
+            esp_deep_sleep_start();
         }
-        esp_task_wdt_reset();           
+
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 }
 
 void sleep_timer_init(uint32_t time_until_sleep_sec)
 {
-    esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO_1, 1);  //1 = High, 0 = Low
-    esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO_2, 1);
-    // Configure pullup/downs via RTCIO to tie wakeup pins to inactive level during deepsleep.
-    // EXT0 resides in the same power domain (RTC_PERIPH) as the RTC IO pullup/downs.
-    // No need to keep that power domain explicitly, unlike EXT1.
-    rtc_gpio_pullup_dis(WAKEUP_GPIO_1);
-    rtc_gpio_pulldown_en(WAKEUP_GPIO_1);
-    rtc_gpio_pullup_dis(WAKEUP_GPIO_2);
-    rtc_gpio_pulldown_en(WAKEUP_GPIO_2);
+    uint32_t timeout_ms = time_until_sleep_sec == 0 ? DEFAULT_TIMEOUT_MS : time_until_sleep_sec * 1000U;
 
-    esp_task_wdt_config_t config = {
-        .time_until_sleep = time_until_sleep_sec * 1000,
-        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-        .trigger_panic = true,
-    };
+    sleep_timer_configure_wakeup();
 
-    esp_task_wdt_init(&config);
-    xTaskCreate(sleep_timer_task, "sleep_timer_task", 2048, NULL, 10, NULL);
+    s_default_timeout_ms = timeout_ms;
+    if (s_task_count == 0)
+    {
+        s_tasks[0].name = "sleep_timer";
+        s_tasks[0].time_until_sleep_ms = s_default_timeout_ms;
+        s_tasks[0].last_awake_call = xTaskGetTickCount();
+        s_tasks[0].active = true;
+        s_task_count = 1;
+    }
+    else
+    {
+        s_tasks[0].time_until_sleep_ms = s_default_timeout_ms;
+        s_tasks[0].last_awake_call = xTaskGetTickCount();
+        s_tasks[0].active = true;
+    }
 
-    esp_task_wdt_config_t config = {
-        .time_until_sleep = TIMEOUT_MS,
-        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-        .trigger_panic = true,
-    };
-
-    esp_task_wdt_init(&config);
-    xTaskCreate(sleep_timer_task, "sleep_timer_timeout_task", 2048, NULL, 10, NULL);
+    if (s_sleep_task_handle == NULL)
+    {
+        xTaskCreate(sleep_timer_task, "sleep_timer_task", 2048, NULL, 10, &s_sleep_task_handle);
+    }
 }

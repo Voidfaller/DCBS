@@ -8,6 +8,7 @@
 #include "pid_control.h"
 #include "servo_driver.h"
 #include "touch_driver.h"
+#include "sleep_module.h"
 #include "watchdog_service.h"
 #include "display_driver.h"
 
@@ -77,6 +78,8 @@ void app_main(void)
         printf("Failed to start touch driver: %s\n", esp_err_to_name(err));
         return;
     }
+
+    sleep_timer_init(30);
 
     // Set true to bypass PID and drive servo directly from state_estimator pitch.
     servo_set_pitch_pid_bypass(false);
