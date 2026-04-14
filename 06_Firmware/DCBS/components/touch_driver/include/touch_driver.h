@@ -9,7 +9,7 @@
 #endif
 
 #ifndef TOUCH_THRESHOLD
-#define TOUCH_THRESHOLD 70U         // REVIEW: check of deze threshold goed is later
+#define TOUCH_THRESHOLD 120U         // REVIEW: check of deze threshold goed is later
 #endif
 
 #ifndef TOUCH_POLL_MS

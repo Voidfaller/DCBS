@@ -79,7 +79,7 @@ void app_main(void)
         return;
     }
 
-    sleep_timer_init(30);
+    sleep_timer_init(10);
 
     // Set true to bypass PID and drive servo directly from state_estimator pitch.
     servo_set_pitch_pid_bypass(false);

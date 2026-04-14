@@ -153,23 +153,34 @@ void touch_driver_task(void *pvParameters)
         esp_err_t read_err = touch_driver_read(&data);
         if (read_err == ESP_OK)
         {
-        // Log only on touch events, not on every read
+            // Keep the system awake for as long as the pad is touched.
+            if (data.touched)
+            {
+                sleep_timer_reset();
+            }
+
+            // Log only on touch edge events.
             if (data.touched && !was_touched)
             {
                 ESP_LOGI(TAG, "Touch detected (value: %lu)", (unsigned long)data.touch_value);
-        // Capture current orientation and set it as the new setpoint in the config manager
+                // Capture current orientation once at the beginning of a touch.
                 orientation_t orientation = state_estimator_get_orientation();
                 if (config_manager_set_current_setpoints(orientation.pitch, orientation.roll, true) == ESP_OK)
                 {
                     ESP_LOGI(TAG, "Captured! >Current setpoints: pitch=%.2f roll=%.2f", orientation.pitch, orientation.roll);
-                    sleep_timer_reset();
                 }
                 else
                 {
                     ESP_LOGE(TAG, "Failed to store setpoints");
                 }
             }
-        // Update the previous touch state
+
+            if (!data.touched && was_touched)
+            {
+                ESP_LOGI(TAG, "Touch released, sleep countdown started");
+            }
+
+            // Update the previous touch state.
             was_touched = data.touched;
         }
         else
