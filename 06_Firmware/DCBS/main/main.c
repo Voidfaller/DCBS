@@ -7,6 +7,7 @@
 #include "state_estimator.h"
 #include "pid_control.h"
 #include "servo_driver.h"
+#include "touch_driver.h"
 #include "watchdog_service.h"
 #include "display_driver.h"
 #include "esp_timer.h"
@@ -15,10 +16,10 @@ void app_main(void)
 {
 
     // // Initialize the watchdog with a timeout of 5 seconds
-    // watchdog_init(5);
+    watchdog_init(5);
     esp_err_t err;
 
-    // printf("[startup] app_main begin\n");
+    printf("[startup] app_main begin\n");
 
     // Initialize the config manager first to ensure settings are available for other components
     err = config_manager_init();
@@ -28,19 +29,6 @@ void app_main(void)
         return;
     }
     printf("[startup] config manager ready\n");
-
-    // Boot test profile: force a visible movement command and keep SG90 in a safe pulse range.
-    app_config_t cfg;
-    config_manager_get_copy(&cfg);
-    cfg.pid_setpoint = 15;
-    cfg.servo_min_us = 1000;
-    cfg.servo_max_us = 2000;
-    err = config_manager_update(&cfg, false);
-    if (err != ESP_OK)
-    {
-        printf("[startup] config_manager_update failed: %s\n", esp_err_to_name(err));
-        return;
-    }
 
     // Initialize the I2C wrapper before any components that depend on I2C
     i2c_wrapper_config_t i2c_cfg = {
@@ -85,7 +73,7 @@ void app_main(void)
     }
     printf("[startup] state estimator ready\n");
 
-    err = pid_control_start(); // start the PID control task 
+    err = pid_control_start(); // start the PID control task
     if (err != ESP_OK)
     {
         printf("Failed to start pid control: %s\n", esp_err_to_name(err));
@@ -103,12 +91,18 @@ void app_main(void)
     }
     printf("[startup]  servo's ready\n");
 
-    // // Use PID mode so configured setpoint drives the servo even when board is level.
+    err = touch_driver_start();
+    if (err != ESP_OK)
+    {
+        printf("Failed to start touch driver: %s\n", esp_err_to_name(err));
+        return;
+    }
+    printf("[startup] touch driver ready\n");
 
-    // printf("[startup] system ready\n");
+    printf("[startup] system ready\n");
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

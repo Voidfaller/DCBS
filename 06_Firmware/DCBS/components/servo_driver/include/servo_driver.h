@@ -1,11 +1,12 @@
 #pragma once
 
+//libraries
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
 #include "driver/ledc.h"
 
-//structs
+//typedefs
 typedef struct
 {
     int gpio_pin;
@@ -34,8 +35,10 @@ typedef struct
     bool immediate;
 } servo_cmd_t;
 
-//functions
+//initialization and state
 void servo_init(servo_t *servo);
+esp_err_t servo_start_task(bool bypass_pid);
+
+//modifiers
 void servo_set_pwm(servo_t *servo, int pwm, int correction);
 void servo_sweep_test(servo_t *servo);
-esp_err_t servo_start_task(bool bypass_pid);

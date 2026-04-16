@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PID_ANGLE_NORM_DEG 90.0f
+#define PID_ANGLE_NORM_DEG 90.0f // max angle so PID output can be normalized to -1,1
 #define PID_ERROR_DEADBAND 0.01f
 #define PID_INTEGRAL_LIMIT 1.0f
 #define PID_OUTPUT_LIMIT 1.0f
@@ -20,18 +20,17 @@ QueueHandle_t s_state_estimator_queue_handle = NULL; // Expose state estimator q
 static void pid_control_task(void *arg);
 static void pid_terminal_task(void *arg);
 // PID controllers for pitch and roll
-// PID controller for pitch axis
 pid_controller_t s_pitch_pid = {
-    .kp = 0.0f,
-    .ki = 0.0f,
-    .kd = 0.0f,
+    .kp = 1.1f,
+    .ki = 0.9f,
+    .kd = 0.002f,
     .setpoint = 0.0f,
 };
 // PID controller for roll axis
 pid_controller_t s_roll_pid = {
-    .kp = 0.0f,
-    .ki = 0.0f,
-    .kd = 0.0f,
+    .kp = 1.1f,
+    .ki = 0.9f,
+    .kd = 0.002f,
     .setpoint = 0.0f,
 };
 // helper functions for terminal interface to print settings and process commands
@@ -328,14 +327,6 @@ static void pid_control_task(void *arg)
             correction.pitch_pwm = pid_controller_update(&s_pitch_pid, current_orientation.pitch);
             correction.roll_pwm = pid_controller_update(&s_roll_pid, current_orientation.roll);
             xQueueOverwrite(s_pid_queue_handle, &correction); // send latest correction to servo task
-
-            // log_divider++;
-            // if (log_divider >= 20U)
-            // {
-            //     printf("[PID Control] Received orientation: pitch:%.2f roll:%.2f\n", current_orientation.pitch, current_orientation.roll);
-            //     printf("[PID Control] Computed corrections: pitch:%.3f roll:%.3f\n", correction.pitch_pwm, correction.roll_pwm);
-            //     log_divider = 0U;
-            // }
         }
     }
 }

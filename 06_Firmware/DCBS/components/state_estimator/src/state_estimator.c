@@ -117,16 +117,6 @@ void state_estimator_update(imu_data_t *data, float dt)
     orientation.roll =
         COMPLEMENTARY_ALPHA * gyro_roll +
         (1.0f - COMPLEMENTARY_ALPHA) * accel_roll;
-
-    // printf("[estimator] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f) est=(pitch=%.2f roll=%.2f)\n",
-    //        data->gyro.gyro_x,
-    //        data->gyro.gyro_y,
-    //        data->gyro.gyro_z,
-    //        data->accel.accel_x,
-    //        data->accel.accel_y,
-    //        data->accel.accel_z,
-    //        orientation.pitch,
-    //        orientation.roll);
 }
 // get current estimated orientation
 orientation_t state_estimator_get_orientation(void)
@@ -223,16 +213,6 @@ void state_estimator_task(void *arg)
             {
                 orientation_t current_orientation = state_estimator_get_orientation(); // send latest oriention to queue
                 xQueueOverwrite(state_estimator_queue_handle, &current_orientation);
-                // printf("Orientation updated: pitch=%.2f, roll=%.2f\n", current_orientation.pitch, current_orientation.roll);
-
-                // trace_div++;
-                // if (trace_div >= 20U)
-                // {
-                //     printf("[estimate] pitch=%.2f roll=%.2f\n",
-                //            current_orientation.pitch,
-                //            current_orientation.roll);
-                //     trace_div = 0U;
-                // }
             }
         }
     }

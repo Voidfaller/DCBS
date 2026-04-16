@@ -5,17 +5,21 @@
 #include "I2C_wrapper.h"
 #include "esp_timer.h"
 #include "watchdog_service.h"
-#define MPU6050_ADDR 0x68 // I2C address of the MPU6050
-// MPU6050 register addressed
+
+
+#define MPU6050_ADDR 0x68
+// MPU6050 register addresses
 #define MPU6050_PWR_MGMT_1 0x6B
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_GYRO_XOUT_H 0x43
+
 // sampling and timing configuration
 #define GYRO_SAMPLE_PERIOD_MS 10
 #define GYRO_I2C_TIMEOUT_MS 80
 #define GYRO_TASK_STACK_SIZE 4096U
 #define GYRO_ERROR_LOG_INTERVAL_MS 1000U
 #define GYRO_PERF_LOG_INTERVAL_US (2000000ULL)
+
 // queue to send IMU data to other modules
 QueueHandle_t gyro_queue_handle = NULL;
 static QueueHandle_t s_gyro_monitor_queue_handle = NULL;
@@ -67,7 +71,8 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
     {
         return ESP_ERR_INVALID_STATE;
     }
-    // read 6 bites of gyro x,y,z gyro
+
+    // read 6 bytes of gyro x,y,z gyro
     err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_GYRO_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
     // retry once if timeout occurs
     if (err == ESP_ERR_TIMEOUT)
@@ -89,6 +94,7 @@ esp_err_t gyro_driver_read_gyro(gyro_data_t *data)
 
     return ESP_OK;
 }
+
 // read acceleromter data
 esp_err_t gyro_driver_read_accel(accel_data_t *data)
 {
@@ -103,6 +109,7 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
     {
         return ESP_ERR_INVALID_STATE;
     }
+
 // read 6 bytes of accel x,y,z data
     err = i2c_wrapper_read_reg(s_mpu6050_dev, MPU6050_ACCEL_XOUT_H, buffer, sizeof(buffer), GYRO_I2C_TIMEOUT_MS);
     // retry once if timeout occurs
@@ -114,6 +121,7 @@ esp_err_t gyro_driver_read_accel(accel_data_t *data)
 
     if (err != ESP_OK)
         return err;
+
     // combine high and low bytes into signed 16 bit values
     int16_t ax = (buffer[0] << 8) | buffer[1]; // accel x
     int16_t ay = (buffer[2] << 8) | buffer[3]; // accel y
@@ -264,14 +272,6 @@ void gyro_driver_task(void *arg)
         if (gyro_queue_handle != NULL)
         {
             xQueueOverwrite(gyro_queue_handle, &data);
-            // trace_div++;
-            // if (trace_div >= 20U)
-            // {
-            //     printf("[gyro] gyro=(%.2f, %.2f, %.2f) accel=(%.2f, %.2f, %.2f)\n",
-            //            data.gyro.gyro_x, data.gyro.gyro_y, data.gyro.gyro_z,
-            //            data.accel.accel_x, data.accel.accel_y, data.accel.accel_z);
-            //     trace_div = 0U;
-            // }
         }
 // send data to monitor/debug queue 
         if (s_gyro_monitor_queue_handle != NULL)
