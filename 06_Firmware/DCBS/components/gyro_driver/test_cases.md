@@ -33,6 +33,9 @@ It provides raw gyroscope (`gyro_x`, `gyro_y`, `gyro_z`) and accelerometer (`acc
 3. Check return value.
 4. Verify MPU6050 registers are configured
 
+gyro_driver_init() → ESP_ERR_INVALID_STATE 
+
+
 ---
 
 ### **test2 – Gyroscope Data Read**
@@ -49,6 +52,12 @@ It provides raw gyroscope (`gyro_x`, `gyro_y`, `gyro_z`) and accelerometer (`acc
 1. Initialize driver (`gyro_driver_init()`).
 2. Call `gyro_driver_read_gyro(&gyro)`.
 3. Verify all fields (`gyro_x`, `gyro_y`, `gyro_z`) are numeric.
+
+output:
+
+1. gyro_x ≈ -126 / 131 = -0.96
+2. gyro_y ≈ -0.96
+3. gyro_z ≈ -0.96
 
 ---
 
@@ -68,6 +77,12 @@ It provides raw gyroscope (`gyro_x`, `gyro_y`, `gyro_z`) and accelerometer (`acc
 3. Verify all fields (`accel_x`, `accel_y`, `accel_z`) are numeric.
 4. Tilt board and confirm readings change accordingly.
 
+output:
+
+1. accel_x = 1.0
+2. accel_y = 0.0
+3. accel_z = 0.0
+   
 ---
 
 ### **test4 – Error Handling (I2C Failure)**
@@ -86,5 +101,48 @@ It provides raw gyroscope (`gyro_x`, `gyro_y`, `gyro_z`) and accelerometer (`acc
 3. Confirm both return an error code.
 4. Reconnect MPU6050 and verify normal operation resumes.
 
+
+s_mpu6050_dev = NULL
+gyro_driver_init() 
+
 ---
 
+### **test5 – Task level tests intergration**
+#### step 1
+except:
+
+gyro_driver_start() → ESP_OK
+task handle != NULL
+queues created
+watchdog registered
+
+#### Step 2
+
+Setup:
+1. Gyro task running
+2. Mock I2C always OK
+
+Except:
+1. Queue wordt gevuld
+2. no watchdog timeout
+3. period ~10ms.
+
+---
+
+### Test mocks:
+
+#### I2C wrapper:
+
+i2c_wrapper_read_reg()
+i2c_wrapper_write_reg_u8()
+i2c_wrapper_add_device()
+
+#### FreeRTOS:
+xQueueCreate
+xQueueOverwrite
+vTaskDelay
+xTaskCreate
+
+#### ESP timer:
+
+esp_timer_get_time()
