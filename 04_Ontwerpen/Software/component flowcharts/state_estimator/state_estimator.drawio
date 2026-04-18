@@ -39,16 +39,20 @@
                 <mxCell id="9" value="Calibrate zero bias" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
                     <mxGeometry x="430" y="320" width="170" height="54" as="geometry"/>
                 </mxCell>
-                <mxCell id="42" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="11" target="7">
+                <mxCell id="42" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="45" target="7">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="890" y="280"/>
+                            <mxPoint x="1090" y="320"/>
+                            <mxPoint x="1090" y="280"/>
                             <mxPoint x="130" y="280"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="10" value="Fuse gyro and accel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
                     <mxGeometry x="630" y="320" width="170" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="11" target="45">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="11" value="Overwrite orientation queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
                     <mxGeometry x="830" y="320" width="200" height="54" as="geometry"/>
@@ -98,6 +102,9 @@
                 </mxCell>
                 <mxCell id="40" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="13" target="14" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" value="Feed Watchdog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="320" width="100" height="54" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

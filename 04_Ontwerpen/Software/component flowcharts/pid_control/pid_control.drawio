@@ -43,15 +43,18 @@
                 <mxCell id="10" value="Update PID outputs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
                     <mxGeometry x="430" y="320" width="170" height="54" as="geometry"/>
                 </mxCell>
-                <mxCell id="45" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;rounded=0;curved=0;" edge="1" parent="1" source="11">
+                <mxCell id="45" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;curved=0;" edge="1" parent="1" source="52">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="730" y="300" as="sourcePoint"/>
                         <mxPoint x="130" y="300" as="targetPoint"/>
                         <Array as="points">
-                            <mxPoint x="730" y="270"/>
+                            <mxPoint x="975" y="270"/>
                             <mxPoint x="130" y="270"/>
                         </Array>
                     </mxGeometry>
+                </mxCell>
+                <mxCell id="53" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="11" target="52">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="11" value="Overwrite correction queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
                     <mxGeometry x="630" y="320" width="200" height="54" as="geometry"/>
@@ -111,6 +114,9 @@
                 </mxCell>
                 <mxCell id="42" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="15" target="16" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="52" value="Feed Watchdog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+                    <mxGeometry x="910" y="320" width="130" height="54" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
