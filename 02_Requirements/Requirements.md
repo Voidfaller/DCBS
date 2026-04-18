@@ -26,8 +26,8 @@ The system shall operate reliably by detecting faults and entering power down st
 ## 3. Functional Requirements
 
 ### FR1 – Cup Tilt Measurement
-The system shall measure the cup tilt angle in two axes (pitch and roll) using an inertial sensor.  
-- Measurement frequency: **≥50 Hz**  
+The system shall measure the cup tilt angle in two axes (pitch and roll) using an inertial sensor.
+- Measurement frequency: **≥50 Hz**
 - Measurement accuracy: **±1°**
 
 ### FR2 – Motion Detection

@@ -1,299 +1,331 @@
 #include "pid_control.h"
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-
-#include "config_manager.h"
-#include "freertos/queue.h"
+#include "esp_timer.h"
 #include "freertos/task.h"
+#include "watchdog_service.h"
 #include "state_estimator.h"
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 
-#define PID_TASK_STACK_SIZE 3072U
-#define PID_TASK_PRIORITY 9U
-#define PID_INPUT_TASK_PRIORITY 8U
-#define PID_INPUT_QUEUE_LEN 1U
-#define PID_OUTPUT_QUEUE_LEN 1U
-#define PID_MONITOR_QUEUE_LEN 1U
-#define PID_DT_SECONDS 0.01f
-#define PID_GAIN_SCALE 0.1f
-
-QueueHandle_t pid_input_queue_handle = NULL;
-QueueHandle_t pid_output_queue_handle = NULL;
-static QueueHandle_t s_pid_monitor_queue_handle = NULL;
-static TaskHandle_t s_pid_task_handle = NULL;
-static TaskHandle_t s_pid_input_task_handle = NULL;
-static pid_controller_t s_pitch_pid;
-static pid_controller_t s_roll_pid;
-static float s_pitch_setpoint_deg = 0.0f;
-static float s_roll_setpoint_deg = 0.0f;
-
-static void pid_control_apply_settings_from_config(void)
+#define PID_ANGLE_NORM_DEG 90.0f // max angle so PID output can be normalized to -1,1
+#define PID_ERROR_DEADBAND 0.01f
+#define PID_INTEGRAL_LIMIT 1.0f
+#define PID_OUTPUT_LIMIT 1.0f
+#define PID_DERIVATIVE_ALPHA 0.85f
+#define PID_TERMINAL_BUFFER_SIZE 96U
+static QueueHandle_t s_pid_queue_handle = NULL;
+QueueHandle_t s_state_estimator_queue_handle = NULL; // Expose state estimator queue handle for testing
+// forware declarations
+static void pid_control_task(void *arg);
+static void pid_terminal_task(void *arg);
+// PID controllers for pitch and roll
+pid_controller_t s_pitch_pid = {
+    .kp = 1.1f,
+    .ki = 0.9f,
+    .kd = 0.002f,
+    .setpoint = 0.0f,
+};
+// PID controller for roll axis
+pid_controller_t s_roll_pid = {
+    .kp = 1.1f,
+    .ki = 0.9f,
+    .kd = 0.002f,
+    .setpoint = 0.0f,
+};
+// helper functions for terminal interface to print settings and process commands
+static void pid_print_settings(void)
 {
-    const app_config_t *cfg;
-
-    cfg = config_manager_get();
-    if (cfg == NULL)
+    printf("[PID Terminal] Pitch: setpoint=%.2f kp=%.3f ki=%.3f kd=%.3f\n", 
+           s_pitch_pid.setpoint,
+           s_pitch_pid.kp,
+           s_pitch_pid.ki,
+           s_pitch_pid.kd); 
+    printf("[PID Terminal] Roll : setpoint=%.2f kp=%.3f ki=%.3f kd=%.3f\n",
+           s_roll_pid.setpoint,
+           s_roll_pid.kp,
+           s_roll_pid.ki,
+           s_roll_pid.kd);
+}
+// update a specific PID parameter based on terminal command input
+static bool pid_set_term_value(pid_controller_t *pid, const char *term, float value) 
+{
+    if ((pid == NULL) || (term == NULL))
     {
-        pid_init(&s_pitch_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
-        pid_init(&s_roll_pid, 2.5f, 0.2f, 0.8f, -30.0f, 30.0f);
-        s_pitch_setpoint_deg = 0.0f;
-        s_roll_setpoint_deg = 0.0f;
-        return;
+        return false;
     }
 
-    s_pitch_setpoint_deg = (float)cfg->pid_setpoint;
-    s_roll_setpoint_deg = (float)cfg->pid_setpoint;
+    if (strcmp(term, "kp") == 0)
+    {
+        pid->kp = value;
+    }
+    else if (strcmp(term, "ki") == 0)
+    {
+        pid->ki = value;
+    }
+    else if (strcmp(term, "kd") == 0)
+    {
+        pid->kd = value;
+    }
+    else if (strcmp(term, "setpoint") == 0)
+    {
+        pid->setpoint = value;
+    }
+    else
+    {
+        return false;
+    }
 
-    pid_init(
-        &s_pitch_pid,
-        (float)cfg->pid_kp * PID_GAIN_SCALE,
-        (float)cfg->pid_ki * PID_GAIN_SCALE,
-        (float)cfg->pid_kd * PID_GAIN_SCALE,
-        -30.0f,
-        30.0f);
-
-    pid_init(
-        &s_roll_pid,
-        (float)cfg->pid_kp * PID_GAIN_SCALE,
-        (float)cfg->pid_ki * PID_GAIN_SCALE,
-        (float)cfg->pid_kd * PID_GAIN_SCALE,
-        -90.0f,
-        90.0f);
+    return true;
 }
-
-static void pid_input_task(void *arg)
+// parse and process a terminal command line 
+static void pid_process_terminal_line(const char *line)
 {
-    QueueHandle_t orientation_queue = NULL;
+    char axis[8];
+    char term[16];
+    float value;
+    int parsed;
+
+    if (line == NULL)
+    {
+        return;
+    }
+    // help command
+    if ((strcmp(line, "pid help") == 0) || (strcmp(line, "help pid") == 0))
+    {
+        printf("[PID Terminal] Commands:\n");
+        printf("[PID Terminal]   pid show\n");
+        printf("[PID Terminal]   pid <pitch|roll|both> <kp|ki|kd|setpoint> <value>\n");
+        printf("[PID Terminal]   recal\n");
+        printf("[PID Terminal] Examples:\n");
+        printf("[PID Terminal]   pid roll kp 3.2\n");
+        printf("[PID Terminal]   pid both kd 0.8\n");
+        printf("[PID Terminal]   pid both setpoint 0\n");
+        printf("[PID Terminal]   recal\n");
+        return;
+    }
+    // show current PID settings
+    if (strcmp(line, "pid show") == 0)
+    {
+        pid_print_settings();
+        return;
+    }
+    // recalibrate IMU
+    if (strcmp(line, "recal") == 0)
+    {
+        printf("[Terminal] Starting IMU recalibration. Keep the board level and still for 1 second...\n");
+        state_estimator_recalibrate();
+        return;
+    }
+    // parse command like: pid roll kp 3.6
+    parsed = sscanf(line, "pid %7s %15s %f", axis, term, &value);
+    if (parsed == 3)
+    {
+        bool ok = true;
+        if (strcmp(axis, "pitch") == 0)
+        {
+            ok = pid_set_term_value(&s_pitch_pid, term, value);
+        }
+        else if (strcmp(axis, "roll") == 0)
+        {
+            ok = pid_set_term_value(&s_roll_pid, term, value);
+        }
+        else if (strcmp(axis, "both") == 0)
+        {
+            ok = pid_set_term_value(&s_pitch_pid, term, value) &&
+                 pid_set_term_value(&s_roll_pid, term, value);
+        }
+        else
+        {
+            ok = false;
+        }
+
+        if (ok)
+        {
+            printf("[PID Terminal] Updated %s %s to %.3f\n", axis, term, value);
+            pid_print_settings();
+        }
+        else
+        {
+            printf("[PID Terminal] Invalid command. Type: pid help\n");
+        }
+        return;
+    }
+    // unkown PID command
+    if (strncmp(line, "pid", 3) == 0)
+    {
+        printf("[PID Terminal] Invalid command. Type: pid help\n");
+    }
+}
+// task that listens for terminal input and updates PID parameters
+static void pid_terminal_task(void *arg)
+{
     (void)arg;
+    char line[PID_TERMINAL_BUFFER_SIZE];
 
     while (1)
     {
-        if (orientation_queue == NULL)
+        // read line from terminal input stdin
+        if (fgets(line, sizeof(line), stdin) != NULL)
         {
-            orientation_queue = state_estimator_get_queue_handle();
-            vTaskDelay(pdMS_TO_TICKS(10));
-            continue;
-        }
-
-        orientation_t orientation;
-        if (xQueueReceive(orientation_queue, &orientation, pdMS_TO_TICKS(100)) == pdPASS)
-        {
-            pid_input_t in = {
-                .pitch_measurement = orientation.pitch,
-                .roll_measurement = orientation.roll,
-            };
-
-            if (pid_input_queue_handle != NULL)
+            size_t len = strlen(line);
+            // remove newline characters
+            while ((len > 0U) && ((line[len - 1U] == '\n') || (line[len - 1U] == '\r')))
             {
-                xQueueOverwrite(pid_input_queue_handle, &in);
+                line[len - 1U] = '\0';
+                len--;
+            }
+
+            if (len > 0U)
+            {
+                pid_process_terminal_line(line);
             }
         }
+        else
+        {
+            // if no input, wait a bit
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
     }
 }
-
-void pid_init(pid_controller_t *pid,
-              float kp,
-              float ki,
-              float kd,
-              float out_min,
-              float out_max)
+// initialize PID controllers (reset state variables)
+void pid_controller_init()
 {
-    if (pid == NULL)
-        return;
+    s_pitch_pid.integral = 0.0f;
+    s_pitch_pid.last_error = 0.0f;
+    s_pitch_pid.filtered_derivative = 0.0f;
+    s_pitch_pid.last_time_us = esp_timer_get_time();
 
-    pid->kp = kp;
-    pid->ki = ki;
-    pid->kd = kd;
-    pid->integral = 0.0f;
-    pid->prev_measurement = 0.0f;
-    pid->out_min = out_min;
-    pid->out_max = out_max;
+    s_roll_pid.integral = 0.0f;
+    s_roll_pid.last_error = 0.0f;
+    s_roll_pid.filtered_derivative = 0.0f;
+    s_roll_pid.last_time_us = esp_timer_get_time();
 }
-
-void pid_reset(pid_controller_t *pid)
+// update PID controller based on current measurement
+float pid_controller_update(pid_controller_t *pid, float measurement)
 {
+    uint64_t now_us;
+    float dt;
+    float setpoint;
+    float error;
+    float raw_derivative;
+    float output;
+
     if (pid == NULL)
-        return;
-
-    pid->integral = 0.0f;
-    pid->prev_measurement = 0.0f;
-}
-
-float pid_update(pid_controller_t *pid,
-                 float setpoint_deg,
-                 float measured_angle_deg,
-                 float dt)
-{
-    if (pid == NULL || dt <= 0.0f)
+    {
         return 0.0f;
-
-    float error = setpoint_deg - measured_angle_deg;
-
-    float p_term = pid->kp * error;
-
-    float old_integral = pid->integral;
-    pid->integral += error * dt;
-
-    float measurement_rate = (measured_angle_deg - pid->prev_measurement) / dt;
-    float d_term = -pid->kd * measurement_rate;
-
-    float output = p_term + (pid->ki * pid->integral) + d_term;
-
-    if (output > pid->out_max)
-    {
-        output = pid->out_max;
-        pid->integral = old_integral;
     }
-    else if (output < pid->out_min)
+    // Normalize measurement and setpoint to -1,1
+    measurement /= PID_ANGLE_NORM_DEG;
+    setpoint = pid->setpoint / PID_ANGLE_NORM_DEG;
+    // compute time step dt
+    now_us = esp_timer_get_time();
+    dt = (now_us - pid->last_time_us) / 1000000.0f;
+    if (dt <= 0.0f)
     {
-        output = pid->out_min;
-        pid->integral = old_integral;
+        dt = 0.001f; // prevent division by zero
+    }
+    pid->last_time_us = now_us;
+    // compute error
+    error = setpoint - measurement;
+    if (fabsf(error) < PID_ERROR_DEADBAND) // apply deadband to reduce noise around zero
+    {
+        error = 0.0f;
     }
 
-    pid->prev_measurement = measured_angle_deg;
+    pid->integral += error * dt; // intergral term with ant windup clamp
+    if (pid->integral > PID_INTEGRAL_LIMIT)
+    {
+        pid->integral = PID_INTEGRAL_LIMIT;
+    }
+    else if (pid->integral < -PID_INTEGRAL_LIMIT)
+    {
+        pid->integral = -PID_INTEGRAL_LIMIT;
+    }
+    // derivative term (rate of change of error)
+    raw_derivative = (error - pid->last_error) / dt;
+    pid->filtered_derivative = // apply low filter to derivative (reduce noise)
+        (PID_DERIVATIVE_ALPHA * pid->filtered_derivative) +
+        ((1.0f - PID_DERIVATIVE_ALPHA) * raw_derivative);
+    pid->last_error = error;
+    // compute total PID output and clamp to limits 
+    output = (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * pid->filtered_derivative);
+    if (output > PID_OUTPUT_LIMIT)
+    {
+        output = PID_OUTPUT_LIMIT;
+    }
+    else if (output < -PID_OUTPUT_LIMIT)
+    {
+        output = -PID_OUTPUT_LIMIT;
+    }
 
-    // printf("PID update: setpoint=%.2f, measured=%.2f, error=%.2f, p=%.2f, i=%.2f, d=%.2f, output=%.2f\n",
-    //        setpoint_deg, measured_angle_deg, error, p_term, pid->ki * pid->integral, d_term, output);
     return output;
 }
-
+// return queue handle for PID output
 QueueHandle_t pid_control_get_queue_handle(void)
 {
-    return pid_output_queue_handle;
+    return s_pid_queue_handle;
 }
-
-QueueHandle_t pid_control_get_input_queue_handle(void)
-{
-    return pid_input_queue_handle;
-}
-
-QueueHandle_t pid_control_get_monitor_queue_handle(void)
-{
-    return s_pid_monitor_queue_handle;
-}
-
-esp_err_t pid_control_reload_settings(void)
-{
-    if (!config_manager_is_initialized())
-    {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    pid_control_apply_settings_from_config();
-    return ESP_OK;
-}
-
+// start PID control and terminal tasks
 esp_err_t pid_control_start(void)
 {
-    BaseType_t task_created;
-
-    if (s_pid_task_handle != NULL && s_pid_input_task_handle != NULL)
+    BaseType_t task_ok;
+    BaseType_t terminal_task_ok;
+    // create queue for PID output
+    if (s_pid_queue_handle == NULL)
     {
-        return ESP_OK;
-    }
-
-    if (pid_input_queue_handle == NULL)
-    {
-        pid_input_queue_handle = xQueueCreate(PID_INPUT_QUEUE_LEN, sizeof(pid_input_t));
-        if (pid_input_queue_handle == NULL)
+        s_pid_queue_handle = xQueueCreate(1, sizeof(pid_correction_t));
+        if (s_pid_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
     }
-
-    if (pid_output_queue_handle == NULL)
+    // get queue from state estimator 
+    if (s_state_estimator_queue_handle == NULL)
     {
-        pid_output_queue_handle = xQueueCreate(PID_OUTPUT_QUEUE_LEN, sizeof(pid_output_t));
-        if (pid_output_queue_handle == NULL)
+        s_state_estimator_queue_handle = state_estimator_get_queue_handle();
+        if (s_state_estimator_queue_handle == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
     }
-
-    if (s_pid_monitor_queue_handle == NULL)
+    // start PID control task 
+    task_ok = xTaskCreate(pid_control_task, "PID Control Task", 2048, NULL, 10, NULL);
+    if (task_ok != pdPASS)
     {
-        s_pid_monitor_queue_handle = xQueueCreate(PID_MONITOR_QUEUE_LEN, sizeof(pid_output_t));
-        if (s_pid_monitor_queue_handle == NULL)
-        {
-            return ESP_ERR_NO_MEM;
-        }
-    }
-
-    pid_control_apply_settings_from_config();
-
-    task_created = xTaskCreate(
-        pid_input_task,
-        "pid_input_task",
-        3072,
-        NULL,
-        PID_INPUT_TASK_PRIORITY,
-        &s_pid_input_task_handle);
-
-    if (task_created != pdPASS)
-    {
-        s_pid_input_task_handle = NULL;
         return ESP_FAIL;
     }
-
-    task_created = xTaskCreate(
-        pid_control_task,
-        "pid_control_task",
-        PID_TASK_STACK_SIZE,
-        NULL,
-        PID_TASK_PRIORITY,
-        &s_pid_task_handle);
-
-    if (task_created != pdPASS)
+    // start terminal task for PID tuning
+    terminal_task_ok = xTaskCreate(pid_terminal_task, "PID Terminal Task", 3072, NULL, 5, NULL);
+    if (terminal_task_ok != pdPASS)
     {
-        s_pid_task_handle = NULL;
         return ESP_FAIL;
     }
 
     return ESP_OK;
 }
-
-void pid_control_task(void *arg)
+// Main PID control loop task: waits for orientation updates, computes PID corrections, and sends them to 
+// motor control task via queue
+static void pid_control_task(void *arg)
 {
-    uint32_t log_div = 0U;
     (void)arg;
+    uint32_t log_divider = 0U;
 
+    pid_controller_init();
+    printf("[PID Terminal] Ready. Type 'pid help' for commands.\n");
+    pid_print_settings();
+
+    pid_correction_t correction;
+
+    orientation_t current_orientation;
     while (1)
     {
-        if (pid_input_queue_handle == NULL)
+        // wait for new orientation data from state estimator 
+        if (xQueueReceive(s_state_estimator_queue_handle, &current_orientation, pdMS_TO_TICKS(100)) == pdPASS)
         {
-            vTaskDelay(pdMS_TO_TICKS(10));
-            continue;
-        }
-
-        pid_input_t in;
-        if (xQueueReceive(pid_input_queue_handle, &in, pdMS_TO_TICKS(100)) == pdPASS)
-        {
-            pid_output_t out = {
-                .pitch_measurement = in.pitch_measurement,
-                .roll_measurement = in.roll_measurement,
-                .pitch_output = pid_update(&s_pitch_pid, s_pitch_setpoint_deg, in.pitch_measurement, PID_DT_SECONDS),
-                .roll_output = pid_update(&s_roll_pid, s_roll_setpoint_deg, in.roll_measurement, PID_DT_SECONDS),
-            };
-
-            if (pid_output_queue_handle != NULL)
-            {
-                xQueueOverwrite(pid_output_queue_handle, &out);
-            }
-            if (s_pid_monitor_queue_handle != NULL)
-            {
-                xQueueOverwrite(s_pid_monitor_queue_handle, &out);
-            }
-
-            log_div++;
-            if (log_div >= 20U)
-            {
-                // printf("PID out pitch=%.2f roll=%.2f | meas pitch=%.2f roll=%.2f\n",
-                //        out.pitch_output,
-                //        out.roll_output,
-                //        out.pitch_measurement,
-                //        out.roll_measurement);
-                log_div = 0U;
-            }
+            // compute PID outputs for pitch and roll based on current orientation 
+            correction.pitch_pwm = pid_controller_update(&s_pitch_pid, current_orientation.pitch);
+            correction.roll_pwm = pid_controller_update(&s_roll_pid, current_orientation.roll);
+            xQueueOverwrite(s_pid_queue_handle, &correction); // send latest correction to servo task
         }
     }
 }

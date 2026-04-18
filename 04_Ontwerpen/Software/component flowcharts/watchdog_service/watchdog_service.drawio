@@ -1,0 +1,82 @@
+<mxfile host="65bd71144e">
+    <diagram id="watchdog-service" name="Page-1">
+        <mxGraphModel dx="838" dy="1192" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="Watchdog Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="1120" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Init" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="120" width="130" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Configure WDT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="120" width="160" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="41" style="edgeStyle=none;html=1;" edge="1" parent="1" source="5" target="6">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Start service task" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="410" y="120" width="170" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="Register task" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="320" width="140" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="Store handle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="320" width="150" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="Feed handle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="410" y="320" width="150" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="Task loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="590" y="320" width="130" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="Check elapsed time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="320" width="170" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="Timeout?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="310" width="120" height="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="Log and restart" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+                    <mxGeometry x="1090" y="320" width="150" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="Reset hardware WDT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="430" width="180" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="Delay 200 ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="430" width="140" height="54" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="3" target="4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="4" target="5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="6" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="7" target="8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="8" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="9" target="10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="10" target="11" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="38" value="yes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="11" target="12" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="39" value="no" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="11" target="13" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="40" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#666666;" parent="1" source="13" target="14" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -1,11 +1,12 @@
 #pragma once
 
+// libraries
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "esp_err.h"
-#include "driver/i2c_master.h"
 
+// typedefs
 typedef enum
 {
     DISPLAY_UI_SCREEN_PID = 0,
@@ -42,17 +43,17 @@ typedef struct
 } display_ui_setting_t;
 
 #define DISPLAY_UI_SETTING(NAME, VALUE_PTR, MIN, MAX, STEP) \
-    { (NAME), (VALUE_PTR), (MIN), (MAX), (STEP) }
+    {(NAME), (VALUE_PTR), (MIN), (MAX), (STEP)}
 
 typedef struct
 {
     int SCL_GPIO;
     int SDA_GPIO;
     uint8_t addr;
-    i2c_master_dev_handle_t dev_handle;
+    void *dev_handle;
     int width;
     int height;
-    uint8_t shadow_ram[1024];  // Shadow buffer: 8 pages x 128 columns for 128x64 displays
+    uint8_t shadow_ram[1024]; // Shadow buffer: 8 pages x 128 columns for 128x64 displays
     const display_ui_setting_t *settings;
     size_t setting_count;
     size_t selected_setting;
@@ -60,18 +61,24 @@ typedef struct
     display_ui_screen_t ui_screen;
     display_ui_screen_t return_screen;
     int16_t pid_history[64];
+    int16_t pid_output_history[64];
     uint8_t pid_history_head;
 } display_t;
 
+// initialization and state
 esp_err_t display_init(display_t *display, uint8_t addr, int width, int height);
 void display_test(display_t *display);
+void display_ui_init(display_t *display, const display_ui_setting_t *settings, size_t setting_count);
+
+// drawing primitives
 void display_clear(display_t *display);
 void display_flush(display_t *display);
 void display_drawPixel(display_t *display, int x, int y, uint8_t color);
 void display_drawLine(display_t *display, int x0, int y0, int x1, int y1, uint8_t color);
 void display_drawRect(display_t *display, int x, int y, int w, int h, uint8_t color);
 void display_fillRect(display_t *display, int x, int y, int w, int h, uint8_t color);
-void display_ui_init(display_t *display, const display_ui_setting_t *settings, size_t setting_count);
+
+// UI handling
 void display_ui_handle_input(display_t *display, bool up_pressed, bool down_pressed, bool select_pressed, bool back_pressed);
 void display_ui_render(display_t *display, const display_ui_data_t *ui_data);
 esp_err_t display_ui_start_task(uint8_t display_addr,
@@ -79,5 +86,4 @@ esp_err_t display_ui_start_task(uint8_t display_addr,
                                 int height,
                                 const display_ui_setting_t *settings,
                                 size_t setting_count);
-
 esp_err_t display_driver_start(void);
