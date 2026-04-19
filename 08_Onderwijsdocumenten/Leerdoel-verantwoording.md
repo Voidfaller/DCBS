@@ -14,3 +14,47 @@ In dit document worden de leerdoelen van TINLES03 Embedded Systems verantwoord.
 | 8. [Manage & Control] Je kunt bepalen welke documentatie relevant is voor de overdracht aan de gebruikers en deze opstellen. | <ul><li>Leerdoel Verantwoording</li><li>Gebruikers Handleiding</li><li>ReadMe's in de code</li></ul> | - |
 | 9. [Manage & Control] Je kunt je project organiseren en waar nodig tussentijds aanpassen aan gegeven budget en tijd. | <ul><li>Jira</li><li>PO Meetings</li></ul> | - |
 | 10. [Professional Skills] Je kunt voor de opdracht relevante kennis verwerven en overbrengen binnen teamverband. | <ul><li>Daily Standups</li><li>PO Meetings</li></ul> | - |
+
+## Technische bewijsmatrix (gevraagde onderwerpen)
+
+- watchdog timer
+	- [Watchdog implementatie (broncode)](../06_Firmware/DCBS/components/watchdog_service/src/watchdog_service.c)
+	- [Watchdog testrapport](../05_Testen/Testplannen/testreport_Watchdog.md)
+
+- sleep modus
+	- [Deep sleep en touch wake-up (touch driver)](../06_Firmware/DCBS/components/touch_driver/src/touch_driver.c)
+	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.md)
+
+- hardware interrupts
+	- [Touch interrupt handler (ISR)](../06_Firmware/DCBS/components/touch_driver/src/touch_driver.c)
+	- [Touch component flowchart](../04_Ontwerpen/Software/component%20flowcharts/touch_driver/touch_driver.svg)
+
+- software interrupts
+	- [Taaknotificatie vanuit ISR naar taak (event-driven afhandeling)](../06_Firmware/DCBS/components/touch_driver/src/touch_driver.c)
+	- [Touch driver ontwerpdiagram](../04_Ontwerpen/Software/component%20flowcharts/touch_driver/touch_driver.drawio)
+	- [RTOS gebruik van vTaskDelay](../06_Firmware/DCBS/components/watchdog_service/src/watchdog_service.c) technisch gezien een vorm van software interrupt (taakplanning)
+
+- gebruik van RTOS / embedded Linux
+	- [FreeRTOS gebruik in main](../06_Firmware/DCBS/main/main.c)
+	- [FreeRTOS taken in watchdog service](../06_Firmware/DCBS/components/watchdog_service/src/watchdog_service.c)
+
+- communicatie via I2C en/of SPI
+	- [I2C wrapper implementatie](../06_Firmware/DCBS/components/I2C_wrapper/src/I2C_wrapper.c)
+	- [I2C initialisatie in main](../06_Firmware/DCBS/main/main.c)
+
+- uitlezen van een sensor
+	- [Sensoronderzoek](../03_Onderzoek/sensor.md)
+	- [Gyro driver testrapport](../05_Testen/Testplannen/testreport_Gyro_driver.md)
+
+- regelen van een systeem (bij voorkeur met PID-controller)
+	- [PID testrapport](../05_Testen/Testplannen/testreport_pid.md)
+	- [PID flowchart](../04_Ontwerpen/Software/component%20flowcharts/pid_control/pid_control.svg)
+
+- aansturen van een actuator (motor driver, relais of iets dergelijks. Een LEDje is geen actuator.)
+	- [Servo driver testrapport](../05_Testen/Testplannen/testreport_servo.md)
+	- [Actuatoronderzoek](../03_Onderzoek/actuator.md)
+
+- interfacing met een display (LCD, OLED of anders; denk aan Nixie-tubes, meerdere LEDs, wijzertje) en knoppen of touchscreen
+	- [Display driver testrapport](../05_Testen/Testplannen/testreport_display.md)
+	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.md)
+	- [Display flowchart](../04_Ontwerpen/Software/component%20flowcharts/display_driver/display_driver.svg)
