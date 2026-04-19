@@ -19,11 +19,11 @@ In dit document worden de leerdoelen van TINLES03 Embedded Systems verantwoord.
 
 - watchdog timer
 	- [Watchdog implementatie (broncode)](../06_Firmware/DCBS/components/watchdog_service/src/watchdog_service.c)
-	- [Watchdog testrapport](../05_Testen/Testplannen/testreport_Watchdog.md)
+	- [Watchdog testrapport](../05_Testen/Testplannen/testreport_Watchdog.docx)
 
 - sleep modus
 	- [Deep sleep en touch wake-up (touch driver)](../06_Firmware/DCBS/components/touch_driver/src/touch_driver.c)
-	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.md)
+	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.docx)
 
 - hardware interrupts
 	- [Touch interrupt handler (ISR)](../06_Firmware/DCBS/components/touch_driver/src/touch_driver.c)
@@ -43,18 +43,18 @@ In dit document worden de leerdoelen van TINLES03 Embedded Systems verantwoord.
 	- [I2C initialisatie in main](../06_Firmware/DCBS/main/main.c)
 
 - uitlezen van een sensor
-	- [Sensoronderzoek](../03_Onderzoek/sensor.md)
-	- [Gyro driver testrapport](../05_Testen/Testplannen/testreport_Gyro_driver.md)
+	- [Sensoronderzoek](../03_Onderzoek/sensor.docx)
+	- [Gyro driver testrapport](../05_Testen/Testplannen/testreport_Gyro_driver.docx)
 
 - regelen van een systeem (bij voorkeur met PID-controller)
-	- [PID testrapport](../05_Testen/Testplannen/testreport_pid.md)
+	- [PID testrapport](../05_Testen/Testplannen/testreport_pid.docx)
 	- [PID flowchart](../04_Ontwerpen/Software/component%20flowcharts/pid_control/pid_control.svg)
 
 - aansturen van een actuator (motor driver, relais of iets dergelijks. Een LEDje is geen actuator.)
-	- [Servo driver testrapport](../05_Testen/Testplannen/testreport_servo.md)
-	- [Actuatoronderzoek](../03_Onderzoek/actuator.md)
+	- [Servo driver testrapport](../05_Testen/Testplannen/testreport_servo.docx)
+	- [Actuatoronderzoek](../03_Onderzoek/actuator.docx)
 
 - interfacing met een display (LCD, OLED of anders; denk aan Nixie-tubes, meerdere LEDs, wijzertje) en knoppen of touchscreen
-	- [Display driver testrapport](../05_Testen/Testplannen/testreport_display.md)
-	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.md)
+	- [Display driver testrapport](../05_Testen/Testplannen/testreport_display.docx)
+	- [Touch driver testrapport](../05_Testen/Testplannen/testreport_Touch_driver.docx)
 	- [Display flowchart](../04_Ontwerpen/Software/component%20flowcharts/display_driver/display_driver.svg)
