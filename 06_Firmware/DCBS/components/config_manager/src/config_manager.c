@@ -1,14 +1,20 @@
+/*
+	To Do:
+	Implement a configuration manager that can save
+	and load settings to non-volatile storage (NVS) on the ESP32. 
+	This will allow users to persist their PID tuning parameters and other settings 
+	across power cycles.
+*/
+
 #include "config_manager.h"
-
 #include <string.h>
-
 #include "nvs.h"
 #include "nvs_flash.h"
 
 #define CONFIG_NAMESPACE "app_cfg"
 #define CONFIG_KEY "settings"
 #define CONFIG_MAGIC 0x4346474DU
-#define CONFIG_VERSION 1U
+#define CONFIG_VERSION 2U
 
 typedef struct
 {
@@ -16,23 +22,23 @@ typedef struct
 	uint16_t version;
 	uint16_t reserved;
 	app_config_t values;
-} stored_config_blob_t;
+} stored_config_blob_t; // Structure for storing the config blob in NVS, includes magic and version for validation
 
 static const app_config_t k_default_config = {
 	.pid_setpoint = 0,
-	.pid_kp = 25,
-	.pid_ki = 2,
-	.pid_kd = 8,
+	.pid_kp = 20,
+	.pid_ki = 0,
+	.pid_kd = 0,
 	.servo_min_us = 500,
 	.servo_max_us = 2500,
 	.ui_frame_ms = 50,
-};
+}; // Default configuration values
 
 static nvs_handle_t s_nvs_handle = 0;
 static bool s_initialized = false;
 static app_config_t s_config;
 
-static esp_err_t config_manager_read_blob(stored_config_blob_t *out_blob)
+static esp_err_t config_manager_read_blob(stored_config_blob_t *out_blob) // Reads the config blob from NVS and validates it. Returns ESP_OK if successful, or an error code if not.
 {
 	size_t blob_size = sizeof(*out_blob);
 	esp_err_t ret;
@@ -56,7 +62,7 @@ static esp_err_t config_manager_read_blob(stored_config_blob_t *out_blob)
 	return ESP_OK;
 }
 
-static esp_err_t config_manager_write_blob(void)
+static esp_err_t config_manager_write_blob(void) // Writes the config blob to NVS. Returns ESP_OK if successful, or an error code if not.
 {
 	stored_config_blob_t blob = {
 		.magic = CONFIG_MAGIC,
@@ -74,12 +80,12 @@ static esp_err_t config_manager_write_blob(void)
 	return nvs_commit(s_nvs_handle);
 }
 
-static void config_manager_load_defaults(void)
+static void config_manager_load_defaults(void) 
 {
 	s_config = k_default_config;
 }
 
-esp_err_t config_manager_init(void)
+esp_err_t config_manager_init(void) // Initializes the configuration manager by setting up NVS and loading the config from storage. If no valid config is found, it loads defaults and saves them. Returns ESP_OK if successful, or an error code if not.
 {
 	esp_err_t ret;
 	stored_config_blob_t blob;
@@ -153,7 +159,7 @@ void config_manager_get_copy(app_config_t *out_config)
 	*out_config = s_config;
 }
 
-esp_err_t config_manager_save(void)
+esp_err_t config_manager_save(void) // Saves the current configuration to NVS. Returns ESP_OK if successful, or an error code if not.
 {
 	if (!s_initialized)
 	{
@@ -163,7 +169,7 @@ esp_err_t config_manager_save(void)
 	return config_manager_write_blob();
 }
 
-esp_err_t config_manager_reload(void)
+esp_err_t config_manager_reload(void) // Reloads the configuration from NVS. Returns ESP_OK if successful, or an error code if not.
 {
 	stored_config_blob_t blob;
 	esp_err_t ret;
@@ -183,7 +189,7 @@ esp_err_t config_manager_reload(void)
 	return ESP_OK;
 }
 
-esp_err_t config_manager_update(const app_config_t *new_config, bool persist_immediately)
+esp_err_t config_manager_update(const app_config_t *new_config, bool persist_immediately) // Updates the configuration with new values. If persist_immediately is true, the changes are saved to NVS immediately. Returns ESP_OK if successful, or an error code if not.
 {
 	if (!s_initialized)
 	{
@@ -204,7 +210,7 @@ esp_err_t config_manager_update(const app_config_t *new_config, bool persist_imm
 	return ESP_OK;
 }
 
-esp_err_t config_manager_reset_to_defaults(bool persist_immediately)
+esp_err_t config_manager_reset_to_defaults(bool persist_immediately) // Resets the configuration to default values. If persist_immediately is true, the changes are saved to NVS immediately. Returns ESP_OK if successful, or an error code if not.
 {
 	if (!s_initialized)
 	{

@@ -1,10 +1,11 @@
 #pragma once
 
+//libraries
 #include <stdbool.h>
 #include <stdint.h>
-
 #include "esp_err.h"
 
+//typedefs
 typedef struct
 {
 	int32_t pid_setpoint;
@@ -16,12 +17,16 @@ typedef struct
 	uint32_t ui_frame_ms;
 } app_config_t;
 
+//initialization and state
 esp_err_t config_manager_init(void);
 bool config_manager_is_initialized(void);
 
+//accessors
 const app_config_t *config_manager_get(void);
 void config_manager_get_copy(app_config_t *out_config);
 
+
+//modifiers
 esp_err_t config_manager_save(void);
 esp_err_t config_manager_reload(void);
 esp_err_t config_manager_update(const app_config_t *new_config, bool persist_immediately);

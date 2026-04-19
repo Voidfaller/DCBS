@@ -1,11 +1,12 @@
 #pragma once
 
+//libraries
 #include <stdint.h>
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-// Data structures
+// typedefs
 typedef struct
 {
     float gyro_x;
@@ -28,10 +29,12 @@ typedef struct
 //globals
 extern QueueHandle_t gyro_queue_handle;
 
-//Functions
+//initialization and state
 esp_err_t gyro_driver_init(void);
 esp_err_t gyro_driver_start(void);
 void gyro_driver_task(void *arg);
+
+//accessors
 esp_err_t gyro_driver_read_gyro(gyro_data_t *data);
 esp_err_t gyro_driver_read_accel(accel_data_t *data);
 QueueHandle_t gyro_driver_get_monitor_queue_handle(void);

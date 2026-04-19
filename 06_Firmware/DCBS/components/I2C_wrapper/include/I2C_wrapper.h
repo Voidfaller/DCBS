@@ -1,13 +1,14 @@
 #pragma once
 
+// libraries
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "esp_err.h"
 
+// typedefs
 typedef struct
 {
 	i2c_port_num_t port;
@@ -19,19 +20,17 @@ typedef struct
 	uint32_t default_dev_speed_hz;
 } i2c_wrapper_config_t;
 
+// initialization and state
 esp_err_t i2c_wrapper_init(const i2c_wrapper_config_t *config);
-
 bool i2c_wrapper_is_initialized(void);
+
+// accessors
 i2c_master_bus_handle_t i2c_wrapper_get_bus_handle(void);
 
+// modifiers
 esp_err_t i2c_wrapper_add_device(uint8_t address_7bit,
 								 uint32_t scl_speed_hz,
 								 i2c_master_dev_handle_t *out_dev_handle);
-esp_err_t i2c_wrapper_probe(uint8_t address_7bit, int timeout_ms);
-esp_err_t i2c_wrapper_scan(uint8_t *addresses,
-						   size_t max_addresses,
-						   size_t *found_count,
-						   int timeout_ms);
 
 esp_err_t i2c_wrapper_txrx(i2c_master_dev_handle_t dev_handle,
 						   const uint8_t *tx_data,
@@ -64,3 +63,9 @@ esp_err_t i2c_wrapper_read_reg_u8(i2c_master_dev_handle_t dev_handle,
 								  uint8_t *value,
 								  int timeout_ms);
 
+// utility functions
+esp_err_t i2c_wrapper_probe(uint8_t address_7bit, int timeout_ms);
+esp_err_t i2c_wrapper_scan(uint8_t *addresses,
+						   size_t max_addresses,
+						   size_t *found_count,
+						   int timeout_ms);
