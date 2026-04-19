@@ -4,11 +4,22 @@
 Dit document dient als overzicht van het eindproject voor Embedded Systems. 
 
 ## Inhoud
-- [Projectomschrijving](#projectomschrijving)
-- [Projectmap (waar vind ik wat?)](#projectmap-waar-vind-ik-wat)
-- [Route voor docenten](#route-voor-docenten)
-- [Teamleden](#teamleden)
-- [Links](#links)
+- [Eindproject](#eindproject)
+  - [Doel van dit document](#doel-van-dit-document)
+  - [Inhoud](#inhoud)
+  - [Projectomschrijving](#projectomschrijving)
+  - [Projectmap (waar vind ik wat?)](#projectmap-waar-vind-ik-wat)
+    - [01. Projectanalyse](#01-projectanalyse)
+    - [02. Requirements](#02-requirements)
+    - [03. Onderzoek](#03-onderzoek)
+    - [04. Ontwerpen](#04-ontwerpen)
+    - [05. Testen](#05-testen)
+    - [06. Firmware](#06-firmware)
+    - [07. Gebruikersinformatie](#07-gebruikersinformatie)
+    - [08. Onderwijsdocumenten](#08-onderwijsdocumenten)
+  - [Route voor docenten](#route-voor-docenten)
+  - [Teamleden](#teamleden)
+  - [Links](#links)
 
 ## Projectomschrijving
 Het doel van dit project is het ontwerpen en implementeren van een embedded systeem.
@@ -49,16 +60,21 @@ Gebruik dit overzicht als snelle navigatie door de repository.
 - `06_Firmware/DCBS/components/`: componentgebaseerde firmwaremodules
 - `06_Firmware/DCBS/components/*/user_manual.docx`: componentdocumentatie (waar aanwezig)
 - `06_Firmware/DCBS/components/*/user_manual.md`: bronversies van componentdocumentatie
+- `06_Firmware/DCBS/components/watchdog_service/user_manual.docx`
+- `06_Firmware/DCBS/components/gyro_driver/user_manual.docx`
+- `06_Firmware/DCBS/components/pid_control/user_manual.docx`
+- `06_Firmware/DCBS/components/state_estimator/user_manual.docx`
+- `06_Firmware/DCBS/components/servo_driver/User_manual.docx`
 - `06_Firmware/DCBS/CMakeLists.txt`: buildconfiguratie
 - `06_Firmware/DCBS/build/`: gegenereerde build-output
-
-### 08. Onderwijsdocumenten
-- `08_Onderwijsdocumenten/docx/Leerdoel-verantwoording.docx`: verantwoording leerdoelen
 
 ### 07. Gebruikersinformatie
 - `07_GebruikersInformatie/docx/User_manual.docx`: gebruikershandleiding
 - `07_GebruikersInformatie/docx/advisory_report.docx`: adviesrapport
 - `07_GebruikersInformatie/md/`: bronversies (.md)
+
+### 08. Onderwijsdocumenten
+- `08_Onderwijsdocumenten/docx/Leerdoel-verantwoording.docx`: verantwoording leerdoelen
 
 ## Route voor docenten
 Voor beoordeling van de leeruitkomsten en onderbouwing is dit het beste startpunt:
