@@ -3,13 +3,6 @@
 ## Doel van dit document
 Dit document dient als overzicht van het eindproject voor Embedded Systems. 
 
-## Teamleden
-- Oumama Attahiri (1064650)
-- Giovanni de Groot (1067652)
-- Issam Mahrik (1082232)
-- Ouassim Rafiq (0966074)
-- Stijn Driessen(0988980)
-
 ## Links
 Git: https://gitlab.cmi.hro.nl/embedded-systems/eindproject
 Jira: https://giovannidegroot.atlassian.net/?continue=https%3A%2F%2Fgiovannidegroot.atlassian.net%2Fwelcome%2Fsoftware%3FprojectId%3D10033&atlOrigin=eyJpIjoiMjkwNTViM2RjZGJjNDJkNTk4ZDQ4OTVjMzFjNjI1ZDUiLCJwIjoiamlyYS1jb3JlIn0
